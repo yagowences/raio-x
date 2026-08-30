@@ -1,0 +1,6 @@
+{
+  "name": "Raio-X de IA — Intellectus Digital",
+  "description": "Auditoria de visibilidade de negócios locais em respostas de IA generativa e laudo de presença em inteligência artificial.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

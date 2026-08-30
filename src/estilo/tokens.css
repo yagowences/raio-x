@@ -1,0 +1,30 @@
+:root {
+  /* cor */
+  --azul-profundo: #0B1F3A;   /* dominante: marca e texto de marca */
+  --ciano:         #00A6E6;   /* RESERVADA a realce pontual */
+  --grafite:       #2B2D42;   /* corpo e legenda. Nunca preto puro */
+  --off-white:     #F5F7FA;   /* fundo padrão */
+  --borda-suave:   #DDE3EA;   /* divisores e contornos sutis */
+  --branco:        #FFFFFF;   /* fundos de cartões e formulários */
+
+  /* chapa radiográfica — derivadas, só neste componente */
+  --chapa-fundo:   #071426;
+  --chapa-vazia:   #0E2440;
+  --chapa-cheia:   #00A6E6;
+
+  /* tipografia — Manrope é a ÚNICA família. Sem itálico em nenhum lugar */
+  --fonte: "Manrope", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --peso-wordmark: 800;
+  --peso-titulo:   700;
+  --peso-corpo:    500;
+  --peso-extensao: 400;
+
+  /* grade base 4px */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 16px;
+  --s4: 24px;
+  --s6: 40px;
+  --radius: 4px;             /* retos, não arredondados */
+}
