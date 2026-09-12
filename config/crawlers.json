@@ -1,0 +1,49 @@
+{
+  "versao": "1.0.0",
+  "_leia_antes": "Taxonomia do §6.2 da tech-spec. Revisão trimestral no calendário. Notas de agosto de 2026 a reconfirmar antes de cada revisão: o robots.txt pode não se aplicar ao ChatGPT-User, porque a busca parte de um usuário; o UA do OAI-SearchBot agora começa com string completa de Chrome desktop, então filtro de log com o formato antigo não pega mais.",
+  "orcamento_fetch": 5,
+  "criticos": [
+    {
+      "nome": "GPTBot",
+      "string": "GPTBot",
+      "familia": "treinamento",
+      "gravidade": "alta",
+      "fetch_direto": true
+    },
+    {
+      "nome": "ChatGPT-User",
+      "string": "ChatGPT-User",
+      "familia": "recuperacao",
+      "gravidade": "critica",
+      "fetch_direto": true
+    },
+    {
+      "nome": "OAI-SearchBot",
+      "string": "OAI-SearchBot",
+      "familia": "busca",
+      "gravidade": "alta",
+      "fetch_direto": true
+    },
+    {
+      "nome": "PerplexityBot",
+      "string": "PerplexityBot",
+      "familia": "recuperacao",
+      "gravidade": "critica",
+      "fetch_direto": true
+    },
+    {
+      "nome": "Google-Extended",
+      "string": "Google-Extended",
+      "familia": "treinamento",
+      "gravidade": "alta",
+      "fetch_direto": true
+    },
+    {
+      "nome": "Googlebot",
+      "string": "Googlebot",
+      "familia": "busca",
+      "gravidade": "baixa",
+      "fetch_direto": false
+    }
+  ]
+}

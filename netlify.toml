@@ -1,0 +1,19 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+
+[dev]
+  # npm run dev fixa a porta em 3000 (vite.config.ts), diferente do padrão do
+  # Vite (5173) que o `netlify dev` tenta detectar sozinho.
+  targetPort = 3000
+
+# Cada função v2 declara seu próprio path via `export const config` — não precisa
+# de [[redirects]] aqui. Front nunca fala com Supabase nem com Gemini — só as
+# funções em netlify/functions/ (P5). Nenhum segredo vive neste arquivo: as env
+# vars (SUPABASE_DB_URL, GEMINI_KEY_CONSULTA, IP_SALT, RATE_LIMIT_DIA) são
+# configuradas no painel da Netlify — variáveis declaradas em netlify.toml não
+# chegam às funções em runtime.

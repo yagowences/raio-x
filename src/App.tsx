@@ -90,6 +90,14 @@ export default function App() {
 
       if (resultado.status === "na_fila") {
         setTela("fila");
+      } else if (resultado.status === "parcial" && resultado.visibilidade === null) {
+        // Etapa gratuita (backend real, sem corpus): não há visibilidade para
+        // animar na Análise — a chapa depende dela. Vai direto para a Fila, que
+        // já mostra a captura + a auditoria do site conforme ela chega via
+        // polling. Cenários mock com corpus continuam indo para "analise":
+        // eles sempre têm visibilidade preenchida, então caem no else abaixo.
+        setTela("fila");
+        iniciarPolling(resultado.auditoria_id);
       } else {
         setTela("analise");
         iniciarPolling(resultado.auditoria_id);

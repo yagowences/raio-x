@@ -6,3 +6,10 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Local Netlify folder
+.netlify
+
+# Gerado pelo bootstrap de Edge Functions do `netlify dev` — não usamos Edge
+# Functions, é ruído de ferramenta local.
+deno.lock
