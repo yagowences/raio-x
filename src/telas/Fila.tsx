@@ -1,6 +1,10 @@
 import React, { useState } from "react";
 import { Auditoria, EntradaLead } from "../api/tipos";
 import { AuditoriaSite } from "../componentes/AuditoriaSite";
+import { Indice } from "../componentes/Indice";
+import { Metrica } from "../componentes/Metrica";
+import { Recomendacao } from "../componentes/Recomendacao";
+import { BlocoBloqueio } from "../componentes/BlocoBloqueio";
 import { track } from "../analytics";
 
 interface FilaProps {
@@ -24,8 +28,15 @@ export const Fila: React.FC<FilaProps> = ({
   const [consentimento, setConsentimento] = useState(false);
   const [erroValidacao, setErroValidacao] = useState<string | null>(null);
 
-  const { corpus, negocio, site_resultado } = auditoria;
+  const { corpus, negocio, site_resultado, indice, laudo } = auditoria;
   const previsaoHoras = corpus.previsao_horas ?? 24;
+
+  // Etapa gratuita: o índice sai só dos pilares do Módulo B. O denominador vem
+  // dos próprios pilares medidos, nunca de uma constante — se um pilar cair, o
+  // número na tela acompanha. Ver docs/03, "Com site, sem corpus".
+  const pesoMedido = indice ? indice.pilares.reduce((s, p) => s + p.peso, 0) : 0;
+  const pesoAusente = 100 - pesoMedido;
+  const temTeto = indice?.teto_aplicado !== null && indice?.teto_aplicado !== undefined;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,12 +75,28 @@ export const Fila: React.FC<FilaProps> = ({
       {/* 1. Bloco de Captura na Fila (Vem ANTES de propósito) */}
       <div className="bloco-painel" style={{ border: "2px solid var(--azul-profundo)", padding: "var(--s6) var(--s4)", marginBottom: "var(--s4)" }}>
         <div style={{ marginBottom: "var(--s4)" }}>
-          <span className="eyebrow">Segmento em Mapeamento</span>
+          <span className="eyebrow">Falta a Varredura do Nicho</span>
           <h1 className="titulo-destaque" style={{ marginTop: "var(--s1)" }}>
-            Seu segmento ainda não está no nosso mapeamento de Goiás.
+            {indice
+              ? `Medimos ${pesoMedido} dos 100 pontos do índice sem varredura nenhuma.`
+              : "Auditamos o seu site agora, sem varredura do nicho."}
           </h1>
           <p className="corpo-texto" style={{ marginTop: "var(--s2)" }}>
-            Deixe seu contato: rodamos a varredura exclusiva para <strong>{negocio.segmento}</strong> em <strong>{negocio.cidade}</strong> e enviamos o resultado completo em até <strong>{previsaoHoras} horas</strong>.
+            {indice ? (
+              <>
+                A análise do seu site está pronta e completa, logo abaixo. Os{" "}
+                <strong>{pesoAusente} pontos restantes</strong> são de autoridade externa — quanto
+                a IA cita <strong>{negocio.nome}</strong> — e isso depende de uma varredura de{" "}
+                <strong>{negocio.segmento}</strong> em <strong>{negocio.cidade}</strong>, que ainda
+                não rodamos. Deixe seu contato e enviamos em até <strong>{previsaoHoras} horas</strong>.
+              </>
+            ) : (
+              <>
+                Deixe seu contato: rodamos a varredura de <strong>{negocio.segmento}</strong> em{" "}
+                <strong>{negocio.cidade}</strong> e enviamos o resultado em até{" "}
+                <strong>{previsaoHoras} horas</strong>.
+              </>
+            )}
           </p>
         </div>
 
@@ -195,24 +222,91 @@ export const Fila: React.FC<FilaProps> = ({
         )}
       </div>
 
-      {/* 2. Auditoria do site roda normalmente mesmo na fila (meia entrega + promessa) */}
+      {/* 2. A análise gratuita. Não é prévia nem consolação: é o que o Módulo B
+             entrega sozinho, para qualquer negócio, sem corpus. Ver docs/05, D6. */}
       <div style={{ marginTop: "var(--s6)" }}>
         <div style={{ marginBottom: "var(--s3)" }}>
-          <span className="eyebrow">Entrega Imediata</span>
-          <h2 className="titulo-secao">
-            Auditoria Técnica Prévia do seu Site
-          </h2>
+          <span className="eyebrow">Análise do seu Site</span>
+          <h2 className="titulo-secao">O que medimos sem depender de varredura</h2>
           <p className="corpo-pequeno">
-            Enquanto o mapeamento de IA é processado, auditamos a infraestrutura individual do seu domínio.
+            {indice
+              ? `${indice.pilares.length} pilares do índice saem só da leitura do seu site.`
+              : "Auditoria técnica do domínio informado."}
           </p>
         </div>
 
-        <AuditoriaSite
-          id="auditoria-site-fila"
-          siteResultado={site_resultado}
-          siteUrl={negocio.site}
-          carregandoParcial={false}
-        />
+        {/* Diagnóstico montado por template. Sem corpus, não cita menção,
+            posição nem concorrente (invariante 18). */}
+        {laudo && (
+          <div
+            id="bloco-diagnostico-fila"
+            className="bloco-painel"
+            style={{ borderLeft: "4px solid var(--azul-profundo)" }}
+          >
+            <span className="eyebrow">Diagnóstico</span>
+            <p className="corpo-texto" style={{ marginTop: "var(--s1)", lineHeight: "1.6" }}>
+              {laudo.diagnostico}
+            </p>
+          </div>
+        )}
+
+        {/* O achado que converte também acontece aqui, e aqui ele tem de aparecer. */}
+        {temTeto && site_resultado && indice && (
+          <BlocoBloqueio siteResultado={site_resultado} indice={indice} />
+        )}
+
+        {site_resultado?.tecnica && (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+              gap: "var(--s2)",
+              marginBottom: "var(--s4)",
+            }}
+          >
+            <Metrica
+              rotulo="Robôs Testados"
+              valor={String(site_resultado.tecnica.acesso.length)}
+              subtexto="Acesso real ao seu domínio"
+              destaque={true}
+            />
+            <Metrica
+              rotulo="Robôs Bloqueados"
+              valor={String(site_resultado.tecnica.acesso.filter((a) => a.bloqueado).length)}
+              subtexto="Receberam 403 ou 429"
+            />
+            {indice && (
+              <Metrica
+                rotulo="Pilares Medidos"
+                valor={`${indice.pilares.length} de 6`}
+                subtexto={`${pesoMedido} dos 100 pontos`}
+              />
+            )}
+            {/* psi_mobile null = não verificamos. Não pontua e não aparece. */}
+            {site_resultado.tecnica.psi_mobile !== null && (
+              <Metrica
+                rotulo="PageSpeed Mobile"
+                valor={String(site_resultado.tecnica.psi_mobile)}
+                subtexto="De 0 a 100"
+              />
+            )}
+          </div>
+        )}
+
+        {indice && <Indice id="bloco-indice-fila" indice={indice} />}
+
+        {!temTeto && (
+          <AuditoriaSite
+            id="auditoria-site-fila"
+            siteResultado={site_resultado}
+            siteUrl={negocio.site}
+            carregandoParcial={false}
+          />
+        )}
+
+        {laudo && laudo.recomendacoes && laudo.recomendacoes.length > 0 && (
+          <Recomendacao recomendacoes={laudo.recomendacoes} />
+        )}
       </div>
 
       {aoVoltarInicio && (

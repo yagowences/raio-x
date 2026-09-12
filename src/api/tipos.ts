@@ -1,6 +1,24 @@
 export type Status = "parcial" | "concluido" | "erro" | "na_fila";
 export type Confianca = "alta" | "media" | "baixa";
 
+// O que o robô faz com o conteúdo — não quem o fabrica.
+// Bloquear treinamento é decisão de negócio; bloquear recuperação é tiro no pé.
+export type Familia = "busca" | "recuperacao" | "treinamento";
+
+// Os seis eixos de julgamento da tech-spec §4.5. Nota de 0 a 10.
+export type EixoConteudo =
+  | "resposta_direta"
+  | "perguntas_reais"
+  | "ganho_informacional"
+  | "sinais_de_autoria"
+  | "prova_social"
+  | "escaneabilidade";
+
+export interface Nota {
+  nota: number | null;
+  por_que: string;
+}
+
 export interface EntradaFormulario {
   negocio: string;
   segmento: string;
@@ -77,7 +95,7 @@ export interface SiteResultado {
   motivo?: "sem_site" | "inacessivel" | "timeout" | "erro";
   url_final?: string;
   tecnica?: {
-    robots: { ua: string; familia: string; gravidade: "critica" | "alta" | "baixa"; permitido: boolean }[];
+    robots: { ua: string; familia: Familia; gravidade: "critica" | "alta" | "baixa"; permitido: boolean }[];
     acesso: { ua: string; status: number; bloqueado: boolean }[];
     bloqueio_silencioso: boolean;
     sitemap: { existe: boolean; urls: number | null; lastmod: string | null };
@@ -109,13 +127,20 @@ export interface SiteResultado {
     horario: boolean;
     pagina_autor: boolean;
   };
-  conteudo?: Record<string, { nota: number | null; por_que: string }> | null;
+  // null = a chamada de julgamento falhou. O pilar `estrutura` sai do
+  // denominador do índice e o laudo não menciona conteúdo. Nunca inventar nota.
+  conteudo?: Record<EixoConteudo, Nota> | null;
 }
 
 export interface Indice {
   valor: number;
+  // teto_aplicado só é preenchido quando o teto REALMENTE cortou (bruto > 30).
+  // Um bloqueio com bruto abaixo de 30 segue reportado em site_resultado.tecnica.
   teto_aplicado: number | null;
   motivo_teto: string | null;
+  // versão de config/pesos.json que produziu este índice. Sem isso não há como
+  // comparar o laudo de agosto com o de novembro nem reprocessar histórico.
+  versao_pesos: string;
   pilares: { id: string; rotulo: string; peso: number; nota: number; confianca: Confianca }[];
 }
 

@@ -1,0 +1,147 @@
+{
+  "versao": "1.0.0",
+  "_leia_antes": "Cada gatilho PRECISA citar dado real da auditoria no campo 'dado'. Recomendação sem número não entra nesta biblioteca. Ordem de prioridade em docs/03-regras-de-negocio.md §4.",
+  "_placeholders": {
+    "{negocio}": "auditoria.negocio.nome",
+    "{segmento}": "auditoria.negocio.segmento",
+    "{cidade}": "auditoria.negocio.cidade",
+    "{url}": "site_resultado.url_final",
+    "{ua}": "user agent do primeiro robô crítico afetado",
+    "{status}": "código HTTP devolvido a esse robô",
+    "{dominio}": "dominios_do_nicho[0].dominio",
+    "{freq}": "dominios_do_nicho[0].frequencia",
+    "{validas}": "visibilidade.execucoes_validas",
+    "{mencoes}": "visibilidade.mencoes"
+  },
+  "gatilhos": [
+    {
+      "id": "bot_critico_bloqueado",
+      "condicao": "site_resultado.tecnica.bloqueio_silencioso === true",
+      "requer_corpus": false,
+      "pilar": "tecnica",
+      "prioridade_forcada": 1,
+      "titulo": "Seu site bloqueia os robôs que alimentam as respostas de IA",
+      "texto": "O {ua} recebeu erro {status} ao tentar ler {url}. Seu robots.txt está liberado — o bloqueio vem de uma regra de firewall ou de plugin de segurança. Enquanto isso durar, seu site existe para pessoas e não existe para essas ferramentas.",
+      "dado": "{ua} → HTTP {status}"
+    },
+    {
+      "id": "robots_bloqueia_critico",
+      "condicao": "site_resultado.tecnica.robots.some(r => r.gravidade === 'critica' && r.permitido === false)",
+      "requer_corpus": false,
+      "pilar": "tecnica",
+      "prioridade_forcada": 1,
+      "titulo": "Seu robots.txt proíbe um robô crítico de ler o site",
+      "texto": "A regra que bloqueia o {ua} está no próprio robots.txt de {url}. É uma linha de texto, e removê-la é a alteração mais barata deste laudo.",
+      "dado": "robots.txt nega {ua}"
+    },
+    {
+      "id": "ausente_no_dominio_dominante",
+      "condicao": "dominio.frequencia / visibilidade.execucoes_validas >= 0.40 && dominio.cliente_presente !== true",
+      "requer_corpus": true,
+      "pilar": "autoridade_externa",
+      "titulo": "A fonte mais consultada do seu nicho não tem você",
+      "texto": "{dominio} apareceu {freq} vezes nas {validas} execuções válidas — é de onde a IA tira a resposta sobre {segmento} em {cidade}. Verifique se você tem perfil lá e se ele está completo.",
+      "dado": "{dominio}: {freq} de {validas} execuções"
+    },
+    {
+      "id": "nenhuma_mencao",
+      "condicao": "visibilidade.taxa_mencao === 0",
+      "requer_corpus": true,
+      "pilar": "autoridade_externa",
+      "titulo": "Seu nome não apareceu em nenhuma execução",
+      "texto": "Em {validas} execuções válidas, {negocio} não foi citado uma vez sequer. Quem pergunta sobre {segmento} em {cidade} recebe uma lista, e você não está nela.",
+      "dado": "0 de {validas} execuções"
+    },
+    {
+      "id": "sem_dados_estruturados",
+      "condicao": "site_resultado.dados_estruturados.presente === false",
+      "requer_corpus": false,
+      "pilar": "dados_estruturados",
+      "titulo": "O site não declara o que é o negócio em dados estruturados",
+      "texto": "Não há JSON-LD em {url}. Sem isso, endereço, horário e serviços viram texto solto que cada ferramenta interpreta do seu jeito — ou ignora.",
+      "dado": "0 blocos JSON-LD"
+    },
+    {
+      "id": "schema_incompleto",
+      "condicao": "site_resultado.dados_estruturados.presente === true && Object.keys(site_resultado.dados_estruturados.campos_faltando).length > 0",
+      "requer_corpus": false,
+      "pilar": "dados_estruturados",
+      "titulo": "Seus dados estruturados existem, mas estão incompletos",
+      "texto": "O schema declarado em {url} não traz campos obrigatórios. Schema pela metade é tratado como schema ausente pela maioria dos consumidores.",
+      "dado": "campos faltando: {campos_faltando}"
+    },
+    {
+      "id": "risco_avaliacao",
+      "condicao": "site_resultado.dados_estruturados.risco_avaliacao === true",
+      "requer_corpus": false,
+      "pilar": "dados_estruturados",
+      "titulo": "A nota de avaliação no schema é um risco, e provavelmente inútil",
+      "texto": "Há aggregateRating declarado em {url} sem fonte pública correspondente. O Google já não exibe esse trecho para LocalBusiness e Organization, e avaliação autodeclarada é o tipo de sinal que derruba a confiança no resto do schema.",
+      "dado": "aggregateRating sem fonte pública"
+    },
+    {
+      "id": "nap_incompleto",
+      "condicao": "site_resultado.nap.telefone === null || site_resultado.nap.endereco === false || site_resultado.nap.horario === false",
+      "requer_corpus": false,
+      "pilar": "local_nap",
+      "titulo": "Nome, endereço, telefone e horário não estão todos legíveis",
+      "texto": "Uma resposta de IA sobre negócio local precisa dos quatro para recomendar com segurança. Falta pelo menos um em {url}, e a ferramenta prefere citar quem tem tudo.",
+      "dado": "{nap_faltando}"
+    },
+    {
+      "id": "sem_pagina_autor",
+      "condicao": "site_resultado.nap.pagina_autor === false",
+      "requer_corpus": false,
+      "pilar": "autoria_onpage",
+      "titulo": "Não há página que diga quem responde pelo conteúdo",
+      "texto": "{url} não tem /sobre, /autor ou equivalente com pessoa identificável. Sem rosto e sem nome, o conteúdo é anônimo, e conteúdo anônimo perde para conteúdo assinado.",
+      "dado": "nenhuma página de autor encontrada"
+    },
+    {
+      "id": "suspeita_spa",
+      "condicao": "site_resultado.tecnica.html_estatico.suspeita_spa === true",
+      "requer_corpus": false,
+      "pilar": "tecnica",
+      "titulo": "O conteúdo só existe depois que o JavaScript roda",
+      "texto": "O HTML bruto de {url} devolveu {chars} caracteres de texto. Boa parte dos robôs de IA lê o HTML e vai embora, sem executar script. Para eles, sua página está em branco.",
+      "dado": "{chars} caracteres no HTML bruto"
+    },
+    {
+      "id": "sem_sitemap",
+      "condicao": "site_resultado.tecnica.sitemap.existe === false",
+      "requer_corpus": false,
+      "pilar": "tecnica",
+      "titulo": "Não há sitemap.xml",
+      "texto": "Sem sitemap, cada robô descobre suas páginas por conta própria, e páginas internas sem link de entrada simplesmente não são encontradas.",
+      "dado": "/sitemap.xml → não encontrado"
+    },
+    {
+      "id": "psi_mobile_baixo",
+      "condicao": "site_resultado.tecnica.psi_mobile !== null && site_resultado.tecnica.psi_mobile < 50",
+      "requer_corpus": false,
+      "pilar": "tecnica",
+      "titulo": "O site é lento no celular",
+      "texto": "{url} marcou {psi} de 100 no PageSpeed mobile. Robô com orçamento de tempo desiste antes de terminar de ler, e cliente também.",
+      "dado": "PageSpeed mobile: {psi}/100"
+    },
+    {
+      "id": "imagens_sem_alt",
+      "condicao": "site_resultado.estrutura.imagens > 0 && site_resultado.estrutura.imagens_com_alt / site_resultado.estrutura.imagens < 0.5",
+      "requer_corpus": false,
+      "pilar": "estrutura",
+      "titulo": "Suas imagens não têm descrição em texto",
+      "texto": "{com_alt} de {imagens} imagens têm alt em {url}. Depoimento, tabela de preço e antes-e-depois publicados como imagem sem alt são invisíveis para quem lê texto.",
+      "dado": "{com_alt}/{imagens} imagens com alt"
+    },
+    {
+      "id": "salto_de_nivel",
+      "condicao": "site_resultado.estrutura.salto_de_nivel === true",
+      "requer_corpus": false,
+      "pilar": "estrutura",
+      "titulo": "A hierarquia de títulos pula níveis",
+      "texto": "As seções de {url} não seguem a ordem h1 → h2 → h3. Quem extrai trecho de resposta usa essa hierarquia para saber onde um assunto começa e termina.",
+      "dado": "salto detectado na sequência de títulos"
+    }
+  ],
+  "_etapa_gratuita": "Gatilho com requer_corpus:false dispara sem Modulo A, e portanto vale na etapa gratuita. Ver docs/03 secao 2."
+}

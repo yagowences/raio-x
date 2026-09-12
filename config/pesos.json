@@ -1,0 +1,43 @@
+{
+  "versao": "1.0.0",
+  "teto_multiplicador": 30,
+  "pilares": [
+    {
+      "id": "autoridade_externa",
+      "rotulo": "Autoridade externa",
+      "peso": 25,
+      "fonte": "modulo_a"
+    },
+    {
+      "id": "autoria_onpage",
+      "rotulo": "Sinais de autoria",
+      "peso": 10,
+      "fonte": "modulo_b"
+    },
+    {
+      "id": "tecnica",
+      "rotulo": "Acessibilidade técnica",
+      "peso": 25,
+      "fonte": "modulo_b",
+      "multiplicador": true
+    },
+    {
+      "id": "local_nap",
+      "rotulo": "Presença local e NAP",
+      "peso": 20,
+      "fonte": "modulo_b"
+    },
+    {
+      "id": "estrutura",
+      "rotulo": "Estrutura de conteúdo",
+      "peso": 12,
+      "fonte": "modulo_b"
+    },
+    {
+      "id": "dados_estruturados",
+      "rotulo": "Dados estruturados",
+      "peso": 8,
+      "fonte": "modulo_b"
+    }
+  ]
+}

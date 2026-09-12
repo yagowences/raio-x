@@ -82,7 +82,7 @@ export const Indice: React.FC<IndiceProps> = ({ id = "bloco-indice", indice }) =
                     {pilar.rotulo}
                   </span>
                   <span style={{ fontSize: "11px", color: "var(--grafite)" }}>
-                    (peso {Math.round(pilar.peso * 100)}%)
+                    (peso {pilar.peso}%)
                   </span>
                 </div>
 
