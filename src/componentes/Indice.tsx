@@ -59,7 +59,8 @@ export const Indice: React.FC<IndiceProps> = ({ id = "bloco-indice", indice }) =
             marginBottom: "var(--s3)",
           }}
         >
-          Teto de nota aplicado: {indice.teto_aplicado} ({indice.motivo_teto})
+          Teto de nota aplicado: {indice.teto_aplicado}
+          {indice.motivo_teto ? ` (${indice.motivo_teto})` : ""}
         </div>
       )}
 

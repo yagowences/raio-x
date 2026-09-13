@@ -6,6 +6,8 @@ import { Metrica } from "../componentes/Metrica";
 import { Recomendacao } from "../componentes/Recomendacao";
 import { BlocoBloqueio } from "../componentes/BlocoBloqueio";
 import { track } from "../analytics";
+import { bloqueioCritico, robosSemAcesso } from "../dominio/bloqueio";
+import { descreverCidade, descreverSegmento } from "../dominio/segmento";
 
 interface FilaProps {
   auditoria: Auditoria;
@@ -30,13 +32,17 @@ export const Fila: React.FC<FilaProps> = ({
 
   const { corpus, negocio, site_resultado, indice, laudo } = auditoria;
   const previsaoHoras = corpus.previsao_horas ?? 24;
+  const segmentoCopy = descreverSegmento(negocio.segmento);
+  const cidadeCopy = descreverCidade(negocio.cidade);
 
   // Etapa gratuita: o índice sai só dos pilares do Módulo B. O denominador vem
   // dos próprios pilares medidos, nunca de uma constante — se um pilar cair, o
   // número na tela acompanha. Ver docs/03, "Com site, sem corpus".
   const pesoMedido = indice ? indice.pilares.reduce((s, p) => s + p.peso, 0) : 0;
   const pesoAusente = 100 - pesoMedido;
-  const temTeto = indice?.teto_aplicado !== null && indice?.teto_aplicado !== undefined;
+  // Bloqueio crítico abre o BlocoBloqueio mesmo sem o teto morder (docs/03 §2).
+  const temBloqueioCritico = bloqueioCritico(site_resultado) !== null;
+  const semAcesso = robosSemAcesso(site_resultado);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,13 +93,13 @@ export const Fila: React.FC<FilaProps> = ({
                 A análise do seu site está pronta e completa, logo abaixo. Os{" "}
                 <strong>{pesoAusente} pontos restantes</strong> são de autoridade externa — quanto
                 a IA cita <strong>{negocio.nome}</strong> — e isso depende de uma varredura de{" "}
-                <strong>{negocio.segmento}</strong> em <strong>{negocio.cidade}</strong>, que ainda
+                <strong>{segmentoCopy}</strong> em <strong>{cidadeCopy}</strong>, que ainda
                 não rodamos. Deixe seu contato e enviamos em até <strong>{previsaoHoras} horas</strong>.
               </>
             ) : (
               <>
-                Deixe seu contato: rodamos a varredura de <strong>{negocio.segmento}</strong> em{" "}
-                <strong>{negocio.cidade}</strong> e enviamos o resultado em até{" "}
+                Deixe seu contato: rodamos a varredura de <strong>{segmentoCopy}</strong> em{" "}
+                <strong>{cidadeCopy}</strong> e enviamos o resultado em até{" "}
                 <strong>{previsaoHoras} horas</strong>.
               </>
             )}
@@ -113,7 +119,7 @@ export const Fila: React.FC<FilaProps> = ({
               Inclusão na fila prioritária confirmada!
             </h3>
             <p className="corpo-texto">
-              Nossa esteira processará as perguntas do segmento {negocio.segmento} e enviaremos o laudo completo no e-mail/WhatsApp cadastrado.
+              Nossa esteira processará as perguntas de {segmentoCopy} e enviaremos o laudo completo no e-mail/WhatsApp cadastrado.
             </p>
           </div>
         ) : (
@@ -251,7 +257,7 @@ export const Fila: React.FC<FilaProps> = ({
         )}
 
         {/* O achado que converte também acontece aqui, e aqui ele tem de aparecer. */}
-        {temTeto && site_resultado && indice && (
+        {temBloqueioCritico && site_resultado && indice && (
           <BlocoBloqueio siteResultado={site_resultado} indice={indice} />
         )}
 
@@ -272,8 +278,8 @@ export const Fila: React.FC<FilaProps> = ({
             />
             <Metrica
               rotulo="Robôs Bloqueados"
-              valor={String(site_resultado.tecnica.acesso.filter((a) => a.bloqueado).length)}
-              subtexto="Receberam 403 ou 429"
+              valor={String(semAcesso.length)}
+              subtexto="Por 403/429 ou robots.txt"
             />
             {indice && (
               <Metrica
@@ -295,14 +301,13 @@ export const Fila: React.FC<FilaProps> = ({
 
         {indice && <Indice id="bloco-indice-fila" indice={indice} />}
 
-        {!temTeto && (
-          <AuditoriaSite
-            id="auditoria-site-fila"
-            siteResultado={site_resultado}
-            siteUrl={negocio.site}
-            carregandoParcial={false}
-          />
-        )}
+        {/* Sempre visível: é a evidência de cada número acima (regra 6). */}
+        <AuditoriaSite
+          id="auditoria-site-fila"
+          siteResultado={site_resultado}
+          siteUrl={negocio.site}
+          carregandoParcial={false}
+        />
 
         {laudo && laudo.recomendacoes && laudo.recomendacoes.length > 0 && (
           <Recomendacao recomendacoes={laudo.recomendacoes} />

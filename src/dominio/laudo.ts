@@ -5,7 +5,9 @@
 
 import gatilhosConfig from "../../config/gatilhos.json";
 import { pesoMedido } from "./indice";
-import type { Dominio, Indice, LaudoResultado, SiteResultado, Visibilidade } from "../api/tipos";
+import { bloqueioCriticoHttp, bloqueioCriticoRobots } from "./bloqueio";
+import { descreverCidade, descreverSegmento } from "./segmento";
+import type { Dominio, EixoConteudo, Indice, LaudoResultado, SiteResultado, Visibilidade } from "../api/tipos";
 
 interface Gatilho {
   id: string;
@@ -54,21 +56,13 @@ function avaliarCondicao(
   }
 }
 
-function primeiroRoboCriticoBloqueado(sr: SiteResultado): { ua: string; status: number } | null {
-  if (!sr.tecnica) return null;
-  for (const robo of sr.tecnica.robots) {
-    if (robo.gravidade !== "critica" || !robo.permitido) continue;
-    const acesso = sr.tecnica.acesso.find((a) => a.ua === robo.ua);
-    if (acesso?.bloqueado) return { ua: robo.ua, status: acesso.status };
-  }
-  return null;
-}
-
-function primeiroRoboCriticoNegadoPorRobots(sr: SiteResultado): { ua: string } | null {
-  if (!sr.tecnica) return null;
-  const robo = sr.tecnica.robots.find((r) => r.gravidade === "critica" && !r.permitido);
-  return robo ? { ua: robo.ua } : null;
-}
+// Gatilhos de conteúdo → eixo do julgamento cuja nota vira o `dado`.
+const EIXO_DO_GATILHO: Record<string, EixoConteudo> = {
+  conteudo_resposta_indireta: "resposta_direta",
+  conteudo_titulos_sem_pergunta: "perguntas_reais",
+  conteudo_generico: "ganho_informacional",
+  conteudo_sem_prova_social: "prova_social",
+};
 
 function rotuloNapFaltando(nap: NonNullable<SiteResultado["nap"]>): string {
   const faltando: string[] = [];
@@ -95,11 +89,16 @@ function resolverValores(id: string, ctx: ContextoLaudo, dominio: Dominio | unde
 
   switch (id) {
     case "bot_critico_bloqueado": {
-      const r = sr ? primeiroRoboCriticoBloqueado(sr) : null;
+      const r = bloqueioCriticoHttp(sr);
       return { ...base, ua: r?.ua ?? "robô crítico", status: String(r?.status ?? "—") };
     }
+    case "bot_bloqueado_http": {
+      const t = sr?.tecnica;
+      const a = t?.acesso.find((x) => x.bloqueado && t.robots.some((r) => r.ua === x.ua && r.permitido));
+      return { ...base, ua: a?.ua ?? "robô de IA", status: String(a?.status ?? "—") };
+    }
     case "robots_bloqueia_critico": {
-      const r = sr ? primeiroRoboCriticoNegadoPorRobots(sr) : null;
+      const r = bloqueioCriticoRobots(sr);
       return { ...base, ua: r?.ua ?? "robô crítico" };
     }
     case "ausente_no_dominio_dominante":
@@ -118,6 +117,11 @@ function resolverValores(id: string, ctx: ContextoLaudo, dominio: Dominio | unde
       };
     case "nap_incompleto":
       return { ...base, nap_faltando: sr?.nap ? rotuloNapFaltando(sr.nap) : "" };
+    case "conteudo_resposta_indireta":
+    case "conteudo_titulos_sem_pergunta":
+    case "conteudo_generico":
+    case "conteudo_sem_prova_social":
+      return { ...base, nota: String(sr?.conteudo?.[EIXO_DO_GATILHO[id]]?.nota ?? "") };
     case "suspeita_spa":
       return { ...base, chars: String(sr?.tecnica?.html_estatico.chars_bruto ?? "") };
     case "psi_mobile_baixo":
@@ -240,7 +244,12 @@ function montarCta(ctx: ContextoLaudo, temTeto: boolean): { variante: string; ti
  * prática (sempre há déficit em algum pilar), mas o chamador não deve assumir
  * `laudo` sempre presente.
  */
-export function montarLaudo(ctx: ContextoLaudo): LaudoResultado | null {
+export function montarLaudo(ctxOriginal: ContextoLaudo): LaudoResultado | null {
+  const { negocio } = ctxOriginal;
+  const ctx: ContextoLaudo = {
+    ...ctxOriginal,
+    negocio: { ...negocio, segmento: descreverSegmento(negocio.segmento), cidade: descreverCidade(negocio.cidade) },
+  };
   const comCorpus = ctx.visibilidade !== null;
   const pesoPorId = new Map(ctx.indice.pilares.map((p) => [p.id, p]));
   const temTeto = ctx.indice.teto_aplicado !== null;
@@ -272,7 +281,10 @@ export function montarLaudo(ctx: ContextoLaudo): LaudoResultado | null {
       return { g, deficit: p ? p.peso * (1 - p.nota / 100) : 0 };
     })
     .sort((a, b) => b.deficit - a.deficit)
-    .map((x) => x.g);
+    .map((x) => x.g)
+    // No máximo uma por pilar: gatilhos do mesmo pilar têm o mesmo déficit, e três
+    // eixos de conteúdo fracos tomariam o laudo inteiro. Vale o primeiro da biblioteca.
+    .filter((g, i, lista) => lista.findIndex((x) => x.pilar === g.pilar) === i);
 
   const ordenados: Array<{ gatilho: Gatilho; dominio?: Dominio }> = forcados.map((g) => ({ gatilho: g }));
   if (gatilhoDominio) ordenados.push(gatilhoDominio);

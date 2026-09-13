@@ -25,6 +25,15 @@
       "dado": "{ua} → HTTP {status}"
     },
     {
+      "id": "bot_bloqueado_http",
+      "condicao": "site_resultado.tecnica.bloqueio_silencioso !== true && site_resultado.tecnica.acesso.some(a => a.bloqueado && site_resultado.tecnica.robots.some(r => r.ua === a.ua && r.permitido))",
+      "requer_corpus": false,
+      "pilar": "tecnica",
+      "titulo": "Seu servidor barra um robô de IA que o robots.txt libera",
+      "texto": "O {ua} recebeu erro {status} ao tentar ler {url}. Seu robots.txt libera esse robô — o bloqueio vem de firewall, CDN ou plugin de segurança do servidor. O que ele não lê não entra no que a ferramenta que ele abastece sabe sobre você.",
+      "dado": "{ua} → HTTP {status}"
+    },
+    {
       "id": "robots_bloqueia_critico",
       "condicao": "site_resultado.tecnica.robots.some(r => r.gravidade === 'critica' && r.permitido === false)",
       "requer_corpus": false,
@@ -141,6 +150,42 @@
       "titulo": "A hierarquia de títulos pula níveis",
       "texto": "As seções de {url} não seguem a ordem h1 → h2 → h3. Quem extrai trecho de resposta usa essa hierarquia para saber onde um assunto começa e termina.",
       "dado": "salto detectado na sequência de títulos"
+    },
+    {
+      "id": "conteudo_resposta_indireta",
+      "condicao": "site_resultado.conteudo != null && site_resultado.conteudo.resposta_direta.nota !== null && site_resultado.conteudo.resposta_direta.nota <= 3",
+      "requer_corpus": false,
+      "pilar": "estrutura",
+      "titulo": "O texto demora a responder o que o título promete",
+      "texto": "Nas seções de {url}, a resposta não está nas primeiras frases. Quem monta uma resposta de IA recorta o começo da seção; se o começo é introdução, o recorte não serve.",
+      "dado": "resposta direta: {nota}/10"
+    },
+    {
+      "id": "conteudo_titulos_sem_pergunta",
+      "condicao": "site_resultado.conteudo != null && site_resultado.conteudo.perguntas_reais.nota !== null && site_resultado.conteudo.perguntas_reais.nota <= 3",
+      "requer_corpus": false,
+      "pilar": "estrutura",
+      "titulo": "Seus títulos não são as perguntas que o cliente faz",
+      "texto": "O cliente pergunta à IA com as próprias palavras. Os títulos de {url} são nomes de seção, não perguntas como as dele. Título em forma de pergunta marca onde a resposta começa.",
+      "dado": "títulos como pergunta: {nota}/10"
+    },
+    {
+      "id": "conteudo_generico",
+      "condicao": "site_resultado.conteudo != null && site_resultado.conteudo.ganho_informacional.nota !== null && site_resultado.conteudo.ganho_informacional.nota <= 3",
+      "requer_corpus": false,
+      "pilar": "estrutura",
+      "titulo": "O texto não diz nada que um concorrente não diria",
+      "texto": "{url} não traz preço, prazo, processo ou material em texto. Frase genérica serve para qualquer {segmento}, e não dá à IA motivo para citar você e não outro.",
+      "dado": "informação específica: {nota}/10"
+    },
+    {
+      "id": "conteudo_sem_prova_social",
+      "condicao": "site_resultado.conteudo != null && site_resultado.conteudo.prova_social.nota !== null && site_resultado.conteudo.prova_social.nota <= 3",
+      "requer_corpus": false,
+      "pilar": "estrutura",
+      "titulo": "Não há depoimento nem resultado escrito no site",
+      "texto": "{url} não cita depoimento, caso ou resultado em texto. Avaliação só em imagem ou em rede social não chega a quem lê o HTML da página.",
+      "dado": "prova social em texto: {nota}/10"
     }
   ],
   "_etapa_gratuita": "Gatilho com requer_corpus:false dispara sem Modulo A, e portanto vale na etapa gratuita. Ver docs/03 secao 2."

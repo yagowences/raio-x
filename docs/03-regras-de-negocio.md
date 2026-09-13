@@ -75,11 +75,19 @@ zero — puniria o cliente por uma falha nossa.
 ### O teto
 
 ```
-se algum robô de família crítica estiver bloqueado (por robots OU por 403/429):
+se algum robô de gravidade crítica estiver bloqueado (por robots OU por 403/429):
     indice = min(indice_bruto, 30)
     teto_aplicado = 30
-    motivo_teto = "{UA} bloqueado"
+    motivo_teto = "{UA} bloqueado por HTTP {status}"   (bloqueio silencioso)
+                | "{UA} bloqueado no robots.txt"        (negado no próprio arquivo)
 ```
+
+Crítico quer dizer `gravidade: "critica"` em `config/crawlers.json` — hoje ChatGPT-User
+e PerplexityBot, os robôs de recuperação. Robô de gravidade alta barrado (ex.: GPTBot
+com 429) **não** aciona o teto: derruba a nota técnica, entra em "robôs bloqueados" e
+gera o gatilho `bot_bloqueado_http`. `bloqueio_silencioso` segue a mesma régua — só
+robô crítico —, o que mantém a invariante 8 de `05-cenarios-e-fixtures.md` verdadeira.
+A decisão vive num lugar só: `src/dominio/bloqueio.ts`.
 
 **O teto é multiplicador, não é parcela.** Não entra na soma ponderada; corta o
 resultado depois.
@@ -98,6 +106,46 @@ o laudo.
 
 Quando o teto age, a interface diz que agiu e diz por quê. Um 30 sem explicação
 parece nota baixa; um 30 com "PerplexityBot bloqueado por HTTP 403" é um diagnóstico.
+
+### 2.1 Notas dos pilares do Módulo B
+
+Heurísticas determinísticas, em `src/dominio/notas.ts`. Documentadas aqui para que
+nenhuma nota seja caixa-preta.
+
+| Pilar | Nota | Confiança |
+|---|---|---|
+| `tecnica` | `100 − 70 × (robôs de IA sem acesso / robôs de IA)`; −20 se suspeita de SPA; −10 sem sitemap. "Sem acesso" = negado no robots.txt **ou** 403/429 no GET; conta uma vez por robô. Googlebot (gravidade baixa) fica fora | alta |
+| `local_nap` | 25 por campo presente: nome, telefone, endereço, horário | alta |
+| `autoria_onpage` | Metade checagem: 100 se há página ou seção do responsável (link `/sobre`, `/quem-somos`, `/equipe`..., âncora `#sobre`) ou pessoa com nome no schema, senão 20. Metade julgamento: eixo `sinais_de_autoria` × 10. Sem julgamento, só a checagem | media |
+| `dados_estruturados` | 5 sem JSON-LD; 95 completo; −15 por campo obrigatório faltando, piso 20 | alta |
+| `estrutura` | média entre parte estrutural (títulos, alt) e a média dos cinco eixos de conteúdo × 10 — `sinais_de_autoria` fica fora, já pesa em autoria. Sem julgamento, o pilar sai | baixa |
+
+Regras de leitura que sustentam essas notas (`netlify/functions/lib/moduloB/`):
+
+- **robots.txt segue a RFC 9309.** Linha em branco não separa grupo; nome de robô
+  casa sem diferenciar maiúsculas; a regra mais longa que casa com `/` vence, e Allow
+  vence empate.
+- **O GET de acesso usa o User-Agent completo do robô** (`ua_completo` em
+  `config/crawlers.json`). Firewall e CDN casam pelo formato real; o token puro passa
+  por regras que barram o robô de verdade. Google-Extended não tem UA próprio e só é
+  lido no robots.txt.
+- **NAP lê só texto visível.** `<script>`, `<style>`, `<noscript>` e `<template>` saem
+  antes dos regexes — IDs e nomes de arquivo viravam telefone e CEP. CEP exige hífen
+  ou o rótulo "CEP". Link `tel:` conta como telefone.
+- **O julgamento de conteúdo recebe a página inteira, com estrutura**
+  (`moduloB/texto.ts`). Saem menu, cabeçalho, carrinho, aviso de cookies e rodapé;
+  título vira linha com `#`, item de lista vira `- `. Até 12 mil caracteres; acima
+  disso cada seção entra com uma fatia igual, marcada com `[…]` onde é cortada. O
+  modelo é o `gemini-flash-lite-latest`, com temperatura 0 e formato garantido por
+  schema; o `gemini-flash-latest` é a segunda tentativa. Como pede a spec §6.4, entra
+  também uma página interna — a do responsável (sobre, quem somos, equipe), até 3 mil
+  caracteres — depois de uma linha `=== Página interna: /caminho ===`.
+- **Os seis eixos aparecem na auditoria técnica**, com a justificativa de cada nota
+  ("Leitura do Conteúdo", confiança baixa). Sem julgamento, o bloco é omitido.
+- **Negócio no schema inclui os subtipos de LocalBusiness** (BeautySalon, HairSalon,
+  Dentist, Store...), que herdam os campos obrigatórios de LocalBusiness. `openingHours`
+  vale no lugar de `openingHoursSpecification`. Blocos dentro de `@graph` são lidos
+  um a um.
 
 ### Sem site
 
@@ -169,8 +217,17 @@ diferentes dentro de um número só.
 1. teto acionado                                    → sempre a recomendação 1
 2. domínio do nicho com frequencia/validas ≥ 0.40
    e cliente_presente !== true                      → recomendação 2
-3. maior déficit ponderado: peso × (1 − nota/100)   → preenche o resto
+3. maior déficit ponderado: peso × (1 − nota/100)   → preenche o resto,
+   no máximo uma recomendação por pilar
 ```
+
+O limite por pilar existe porque gatilhos do mesmo pilar têm o mesmo déficit. Sem
+ele, três eixos de conteúdo fracos (todos de `estrutura`) tomavam o laudo e
+empurravam NAP e schema para fora. No empate, vale a ordem de `gatilhos.json`.
+
+Os quatro gatilhos de conteúdo (`conteudo_*`) disparam com nota ≤ 3 no eixo e citam
+a nota como dado. A justificativa do modelo não entra no laudo — o laudo é template
+(T5); ela aparece como evidência no bloco "Leitura do Conteúdo".
 
 O bloqueio silencioso vem primeiro porque é o achado que converte: robots.txt limpo
 e 403 na prática é o cenário mais comum e o mais invisível para o dono do site. Ele
@@ -178,7 +235,7 @@ não sabe, ninguém contou, e o conserto é barato.
 
 **Na etapa gratuita, a regra 2 não se aplica** — ela depende de `dominios_do_nicho`,
 que vem do corpus. A regra 1 e a regra 3 funcionam integralmente, e é por isso que a
-etapa gratuita produz laudo de verdade: **12 dos 14 gatilhos de `config/gatilhos.json`
+etapa gratuita produz laudo de verdade: **17 dos 19 gatilhos de `config/gatilhos.json`
 disparam só com o site**, incluindo `bot_critico_bloqueado`. Cada gatilho carrega
 `requer_corpus` para tornar isso verificável.
 
@@ -230,7 +287,7 @@ Nenhuma destas falhas mostra tela de erro ao visitante.
 |---|---|
 | Corpus não existe para o nicho | **Não é degradação.** Cai na etapa gratuita: índice sobre 75, laudo com os gatilhos aplicáveis, e a fila oferecida como acréscimo |
 | Site inacessível ou timeout | `avaliado: false` com `motivo`. Módulo A intacto. **É achado, não erro** |
-| Julgamento de conteúdo falhou | Bloco de conteúdo some. Índice renormaliza sem `estrutura` |
+| Julgamento de conteúdo falhou | Bloco de conteúdo some. Índice renormaliza sem `estrutura`; `autoria_onpage` fica só com a checagem da página; gatilhos `conteudo_*` não disparam |
 | PageSpeed falhou | `psi_mobile: null`. Não pontua, não aparece |
 | Polling estourou 20 tentativas | Para o timer, mantém o que já chegou, resultado parcial segue utilizável |
 | Rede caiu no envio | Preserva o formulário, oferece nova tentativa |

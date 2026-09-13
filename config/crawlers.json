@@ -1,11 +1,14 @@
 {
-  "versao": "1.0.0",
+  "versao": "1.1.0",
   "_leia_antes": "Taxonomia do §6.2 da tech-spec. Revisão trimestral no calendário. Notas de agosto de 2026 a reconfirmar antes de cada revisão: o robots.txt pode não se aplicar ao ChatGPT-User, porque a busca parte de um usuário; o UA do OAI-SearchBot agora começa com string completa de Chrome desktop, então filtro de log com o formato antigo não pega mais.",
+  "_ua_completo": "O GET de acesso envia ua_completo, nunca o token puro: firewall e CDN casam pelo formato real (caso bellae.com.br: hCDN devolve 429 ao UA real do GPTBot e 200 ao token 'GPTBot'). 'string' continua sendo o token usado no robots.txt. Revisar as versões junto com a taxonomia.",
+  "_google_extended": "Google-Extended é só token de robots.txt: o Google busca com o UA do Googlebot. Um GET com UA 'Google-Extended' não mede nada, por isso fetch_direto é false.",
   "orcamento_fetch": 5,
   "criticos": [
     {
       "nome": "GPTBot",
       "string": "GPTBot",
+      "ua_completo": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; GPTBot/1.3; +https://openai.com/gptbot",
       "familia": "treinamento",
       "gravidade": "alta",
       "fetch_direto": true
@@ -13,6 +16,7 @@
     {
       "nome": "ChatGPT-User",
       "string": "ChatGPT-User",
+      "ua_completo": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; ChatGPT-User/1.0; +https://openai.com/bot",
       "familia": "recuperacao",
       "gravidade": "critica",
       "fetch_direto": true
@@ -20,6 +24,7 @@
     {
       "nome": "OAI-SearchBot",
       "string": "OAI-SearchBot",
+      "ua_completo": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36; compatible; OAI-SearchBot/1.3; +https://openai.com/searchbot",
       "familia": "busca",
       "gravidade": "alta",
       "fetch_direto": true
@@ -27,6 +32,7 @@
     {
       "nome": "PerplexityBot",
       "string": "PerplexityBot",
+      "ua_completo": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; PerplexityBot/1.0; +https://perplexity.ai/perplexitybot)",
       "familia": "recuperacao",
       "gravidade": "critica",
       "fetch_direto": true
@@ -36,7 +42,7 @@
       "string": "Google-Extended",
       "familia": "treinamento",
       "gravidade": "alta",
-      "fetch_direto": true
+      "fetch_direto": false
     },
     {
       "nome": "Googlebot",

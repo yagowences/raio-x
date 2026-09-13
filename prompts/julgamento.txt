@@ -3,6 +3,13 @@ Você avalia um trecho de texto extraído de uma página web, sem saber a que ne
 Você recebe apenas texto limpo (sem HTML, sem nome do negócio, sem contato). Avalie os
 seis eixos abaixo, cada um de 0 a 10. Responda só com JSON, sem texto fora do JSON.
 
+Como ler o texto: linhas que começam com # são títulos (## subtítulo, ### e assim por
+diante); linhas que começam com - são itens de lista; […] marca trecho cortado para
+caber no limite — não trate o corte como falha do texto. Menu, carrinho e rodapé já
+foram removidos. Se houver uma linha "=== Página interna: /caminho ===", o que vem
+depois é de uma página interna do mesmo site (sobre, quem somos): avalie as duas
+partes juntas.
+
 Eixos:
 
 - resposta_direta: a primeira ou segunda frase de cada seção já responde a pergunta que

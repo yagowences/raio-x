@@ -12,11 +12,12 @@ arquivo que muda é `src/api/client.ts` (`USE_MOCK = false`).
 ```bash
 npm run dev      # vite, porta 3000
 npm run build    # build de produção
-npm run lint     # tsc --noEmit — é o único verificador do projeto hoje
+npm run lint     # tsc --noEmit
+npm test         # node:test via tsx — Módulo B, notas, teto e laudo
 ```
 
-Não existe runner de testes. `npm run lint` é o portão. Rode antes de dizer que algo
-está pronto.
+`npm run lint` e `npm test` são o portão. Rode os dois antes de dizer que algo está
+pronto. Bug de medição corrigido ganha teste com o caso real que o revelou.
 
 ## Regras que o código não pode violar
 
@@ -51,7 +52,10 @@ disruptivo. Detalhe em `docs/04-regras-de-copy.md`.
 |---|---|
 | `docs/` | Documentação que governa o desenvolvimento. Leia antes de mexer em regra de negócio |
 | `config/pesos.json` | Pesos dos pilares do índice. Fonte única de verdade |
-| `config/gatilhos.json` | Biblioteca de recomendações do laudo (ainda não ligada ao código) |
+| `config/gatilhos.json` | Biblioteca de recomendações do laudo (ligada em `src/dominio/laudo.ts`; as fixtures ainda escrevem as suas à mão) |
+| `config/crawlers.json` | Robôs testados: token do robots.txt, UA completo do GET, gravidade |
+| `src/dominio/` | Regras puras: índice, notas dos pilares, bloqueio crítico, laudo |
+| `tests/` | `npm test` — cada bug de medição com o caso real que o revelou |
 | `src/api/tipos.ts` | Contrato de dados compartilhado com o backend futuro |
 | `src/api/fixtures/` | Os cinco cenários de demonstração |
 | `src/telas/` | Uma tela por etapa do fluxo |
@@ -61,7 +65,7 @@ disruptivo. Detalhe em `docs/04-regras-de-copy.md`.
 
 O cenário `fila` — site auditado, nicho sem corpus — **não é degradação**. É a
 configuração que atende qualquer negócio sem investimento prévio: 75 dos 100 pontos
-do índice e 12 dos 14 gatilhos saem só do site.
+do índice e 17 dos 19 gatilhos saem só do site.
 
 A fixture `fila` entrega índice 67 sobre 75 e duas recomendações, e `Fila.tsx` monta
 `Indice`, `Metrica`, `BlocoBloqueio`, `AuditoriaSite` e `Recomendacao`.
