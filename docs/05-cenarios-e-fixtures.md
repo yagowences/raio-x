@@ -86,8 +86,8 @@ resultado.
 
 ## Invariantes
 
-Toda fixture tem de satisfazer todas. Hoje a verificação é a olho; não há runner de
-testes no projeto.
+Toda fixture tem de satisfazer todas. Hoje a verificação das fixtures é a olho: o
+`npm test` cobre o Módulo B, as notas, o teto e o laudo, mas ainda não as invariantes.
 
 ### Aritmética
 

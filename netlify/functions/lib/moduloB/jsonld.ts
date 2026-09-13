@@ -12,15 +12,76 @@ export interface DadosEstruturados {
   risco_avaliacao: boolean;
 }
 
+const CAMPOS_LOCAL_BUSINESS = ["address", "telephone", "openingHoursSpecification"];
+
 const CAMPOS_OBRIGATORIOS: Record<string, string[]> = {
-  LocalBusiness: ["address", "telephone", "openingHoursSpecification"],
+  LocalBusiness: CAMPOS_LOCAL_BUSINESS,
   MedicalBusiness: ["address", "telephone"],
   HealthAndBeautyBusiness: ["address", "telephone"],
   FoodEstablishment: ["servesCuisine", "priceRange"],
   Organization: ["address", "telephone"],
 };
 
-/** Extrai todo bloco JSON-LD do HTML. JSON malformado é ignorado, não derruba a auditoria. */
+// Subtipos de LocalBusiness comuns em negócio local. Herdam os campos de
+// LocalBusiness — sem isso, um BeautySalon passava sem checagem nenhuma.
+const SUBTIPOS_LOCAL_BUSINESS = new Set([
+  "BeautySalon",
+  "HairSalon",
+  "NailSalon",
+  "DaySpa",
+  "TattooParlor",
+  "Store",
+  "ClothingStore",
+  "JewelryStore",
+  "ShoeStore",
+  "PetStore",
+  "OpticianStore",
+  "Optician",
+  "Dentist",
+  "Physician",
+  "MedicalClinic",
+  "Pharmacy",
+  "VeterinaryCare",
+  "ExerciseGym",
+  "HealthClub",
+  "ProfessionalService",
+  "LegalService",
+  "Attorney",
+  "AccountingService",
+  "RealEstateAgent",
+  "AutoRepair",
+  "ChildCare",
+  "Hotel",
+  "LodgingBusiness",
+]);
+
+/** Campo alternativo aceito no lugar do obrigatório (schema.org aceita os dois). */
+const CAMPO_ALTERNATIVO: Record<string, string> = {
+  openingHoursSpecification: "openingHours",
+};
+
+export function tiposDoBloco(bloco: BlocoJsonLd): string[] {
+  const t = Array.isArray(bloco["@type"]) ? bloco["@type"] : [bloco["@type"]];
+  return t.filter((x): x is string => typeof x === "string");
+}
+
+function camposObrigatorios(tipo: string): string[] | undefined {
+  return CAMPOS_OBRIGATORIOS[tipo] ?? (SUBTIPOS_LOCAL_BUSINESS.has(tipo) ? CAMPOS_LOCAL_BUSINESS : undefined);
+}
+
+/** Tipo que representa o negócio em si (e não página, produto, pessoa...). */
+export function ehTipoNegocio(tipo: string): boolean {
+  return (
+    tipo in CAMPOS_OBRIGATORIOS ||
+    SUBTIPOS_LOCAL_BUSINESS.has(tipo) ||
+    /Business|Organization|Restaurant|Store/.test(tipo)
+  );
+}
+
+/**
+ * Extrai todo bloco JSON-LD do HTML, abrindo `@graph` (formato do Yoast e do
+ * Rank Math). JSON malformado é ignorado, não derruba a auditoria.
+ */
 export function extrairJsonLd(html: string): BlocoJsonLd[] {
   const $ = cheerio.load(html);
   const blocos: BlocoJsonLd[] = [];
@@ -28,8 +89,11 @@ export function extrairJsonLd(html: string): BlocoJsonLd[] {
   $('script[type="application/ld+json"]').each((_, el) => {
     try {
       const conteudo = JSON.parse($(el).text());
-      const lista = Array.isArray(conteudo) ? conteudo : [conteudo];
-      blocos.push(...lista);
+      const lista: BlocoJsonLd[] = Array.isArray(conteudo) ? conteudo : [conteudo];
+      for (const item of lista) {
+        if (Array.isArray(item?.["@graph"])) blocos.push(...item["@graph"]);
+        if (item?.["@type"] !== undefined) blocos.push(item);
+      }
     } catch {
       // ignora bloco malformado
     }
@@ -43,21 +107,17 @@ export function analisarDadosEstruturados(blocos: BlocoJsonLd[]): DadosEstrutura
     return { presente: false, tipos: [], campos_faltando: {}, risco_avaliacao: false };
   }
 
-  const tipos = [
-    ...new Set(
-      blocos
-        .flatMap((b) => (Array.isArray(b["@type"]) ? b["@type"] : [b["@type"]]))
-        .filter((t): t is string => typeof t === "string")
-    ),
-  ];
+  const tipos = [...new Set(blocos.flatMap(tiposDoBloco))];
 
   const camposFaltando: Record<string, string[]> = {};
   for (const bloco of blocos) {
-    const tiposDoBloco = Array.isArray(bloco["@type"]) ? bloco["@type"] : [bloco["@type"]];
-    for (const t of tiposDoBloco) {
-      const obrigatorios = CAMPOS_OBRIGATORIOS[t];
+    for (const t of tiposDoBloco(bloco)) {
+      const obrigatorios = camposObrigatorios(t);
       if (!obrigatorios) continue;
-      const faltando = obrigatorios.filter((campo) => bloco[campo] === undefined);
+      const faltando = obrigatorios.filter((campo) => {
+        const alternativo = CAMPO_ALTERNATIVO[campo];
+        return bloco[campo] === undefined && (!alternativo || bloco[alternativo] === undefined);
+      });
       if (faltando.length > 0) camposFaltando[t] = faltando;
     }
   }

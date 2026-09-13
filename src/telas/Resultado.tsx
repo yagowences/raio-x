@@ -9,6 +9,7 @@ import { DominiosDoNicho } from "../componentes/DominiosDoNicho";
 import { Recomendacao } from "../componentes/Recomendacao";
 import { BlocoBloqueio } from "../componentes/BlocoBloqueio";
 import { Captura } from "./Captura";
+import { bloqueioCritico } from "../dominio/bloqueio";
 import { track } from "../analytics";
 
 interface ResultadoProps {
@@ -65,7 +66,10 @@ export const Resultado: React.FC<ResultadoProps> = ({
   }, []);
 
   const totalExec = corpus.total_execucoes ?? 15;
-  const temTetoBloqueio = indice?.teto_aplicado !== null && indice?.teto_aplicado !== undefined;
+  // Bloqueio crítico sobe o BlocoBloqueio mesmo quando o teto não morde (bruto
+  // já abaixo de 30) — docs/03 §2. A auditoria do site aparece sempre: é a
+  // evidência que sustenta o bloqueio.
+  const temBloqueioCritico = bloqueioCritico(site_resultado) !== null;
 
   return (
     <div id="tela-resultado">
@@ -107,8 +111,8 @@ export const Resultado: React.FC<ResultadoProps> = ({
         </div>
       )}
 
-      {/* Se houver teto aplicado por bloqueio crítico, sobe o Bloco de Bloqueio (§6.4) */}
-      {temTetoBloqueio && site_resultado && indice && (
+      {/* Bloqueio crítico medido sobe o Bloco de Bloqueio (§6.4) */}
+      {temBloqueioCritico && site_resultado && indice && (
         <BlocoBloqueio siteResultado={site_resultado} indice={indice} />
       )}
 
@@ -177,14 +181,12 @@ export const Resultado: React.FC<ResultadoProps> = ({
       {/* BLOCO 4: Índice */}
       {indice !== null && <Indice indice={indice} />}
 
-      {/* BLOCO 5: Auditoria do site (se não subiu como bloco crítico) */}
-      {!temTetoBloqueio && (
-        <AuditoriaSite
-          siteResultado={site_resultado}
-          siteUrl={negocio.site}
-          carregandoParcial={carregandoParcialSite}
-        />
-      )}
+      {/* BLOCO 5: Auditoria do site */}
+      <AuditoriaSite
+        siteResultado={site_resultado}
+        siteUrl={negocio.site}
+        carregandoParcial={carregandoParcialSite}
+      />
 
       {/* BLOCO 6: Onde a IA foi buscar (Domínios do Nicho) */}
       {visibilidade && visibilidade.dominios_do_nicho && visibilidade.dominios_do_nicho.length > 0 && (

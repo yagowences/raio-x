@@ -1,6 +1,15 @@
 import React from "react";
-import { SiteResultado } from "../api/tipos";
+import { EixoConteudo, SiteResultado } from "../api/tipos";
 import { Etiqueta } from "./Etiqueta";
+
+const EIXOS_CONTEUDO: Array<[EixoConteudo, string]> = [
+  ["resposta_direta", "Resposta direta"],
+  ["perguntas_reais", "Títulos como pergunta"],
+  ["ganho_informacional", "Informação específica"],
+  ["sinais_de_autoria", "Sinais de autoria"],
+  ["prova_social", "Prova social em texto"],
+  ["escaneabilidade", "Leitura rápida"],
+];
 
 interface AuditoriaSiteProps {
   id?: string;
@@ -94,7 +103,9 @@ export const AuditoriaSite: React.FC<AuditoriaSiteProps> = ({
     );
   }
 
-  const { tecnica, estrutura, dados_estruturados, nap } = siteResultado;
+  const { tecnica, estrutura, dados_estruturados, nap, conteudo } = siteResultado;
+  // Googlebot (gravidade baixa) fica fora: a lista é de robôs de IA.
+  const negadosNoRobots = (tecnica?.robots ?? []).filter((r) => r.gravidade !== "baixa" && !r.permitido).map((r) => r.ua);
 
   return (
     <div id={id} className="bloco-painel">
@@ -153,6 +164,14 @@ export const AuditoriaSite: React.FC<AuditoriaSiteProps> = ({
                 flexWrap: "wrap",
               }}
             >
+              <span>
+                robots.txt:{" "}
+                <strong>
+                  {negadosNoRobots.length > 0
+                    ? `proíbe ${negadosNoRobots.join(", ")}`
+                    : "libera todos os robôs de IA"}
+                </strong>
+              </span>
               <span>
                 Sitemap XML: <strong>{tecnica.sitemap.existe ? `Sim (${tecnica.sitemap.urls} URLs)` : "Não encontrado"}</strong>
               </span>
@@ -230,6 +249,42 @@ export const AuditoriaSite: React.FC<AuditoriaSiteProps> = ({
               <div>Endereço completo: <strong>{nap.endereco ? "Sim" : "Não"}</strong></div>
               <div>Horário de funcionamento: <strong>{nap.horario ? "Sim" : "Não"}</strong></div>
               <div>Página do autor / responsável: <strong>{nap.pagina_autor ? "Sim" : "Não"}</strong></div>
+            </div>
+          </div>
+        )}
+
+        {/* 5. Leitura do conteúdo. conteudo null = julgamento falhou: omitir o bloco
+            inteiro, nunca "conteúdo fraco" (docs/04). */}
+        {conteudo && (
+          <div style={{ borderTop: "1px solid var(--borda-suave)", paddingTop: "var(--s3)" }}>
+            <h3 style={{ fontSize: "14px", fontWeight: "var(--peso-titulo)", marginBottom: "4px", color: "var(--azul-profundo)" }}>
+              5. Leitura do Conteúdo
+            </h3>
+            <p style={{ fontSize: "12px", color: "var(--grafite)", marginBottom: "var(--s2)" }}>
+              Leitura automatizada do texto da página, de 0 a 10. É julgamento, não medição: confiança baixa.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "var(--s2)" }}>
+              {EIXOS_CONTEUDO.map(([eixo, rotulo]) => {
+                const item = conteudo[eixo];
+                return (
+                  <div
+                    key={eixo}
+                    style={{ padding: "8px 10px", border: "1px solid var(--borda-suave)", borderRadius: "var(--radius)" }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: "var(--s2)", fontSize: "12px" }}>
+                      <span style={{ fontWeight: "var(--peso-titulo)", color: "var(--azul-profundo)" }}>{rotulo}</span>
+                      <strong style={{ fontFamily: "var(--mono)", color: "var(--azul-profundo)" }}>
+                        {item.nota === null ? "não avaliado" : `${item.nota}/10`}
+                      </strong>
+                    </div>
+                    {item.por_que && (
+                      <div style={{ fontSize: "12px", color: "var(--grafite)", marginTop: "2px", lineHeight: "1.5" }}>
+                        {item.por_que}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

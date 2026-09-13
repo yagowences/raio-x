@@ -22,7 +22,11 @@ export interface Estrutura {
 export function analisarHtml(html: string): { estatico: HtmlEstatico; estrutura: Estrutura } {
   const $ = cheerio.load(html);
 
-  const textoVisivel = $("body").text().replace(/\s+/g, " ").trim();
+  // Só o que uma pessoa lê: script (inclusive JSON-LD) e style inflavam a contagem
+  // e escondiam SPA de página vazia atrás de um script inline grande.
+  const $visivel = cheerio.load(html);
+  $visivel("script, style, noscript, template").remove();
+  const textoVisivel = $visivel("body").text().replace(/\s+/g, " ").trim();
   const charsBruto = textoVisivel.length;
 
   const raizApp = $("#root, #app, #__next");

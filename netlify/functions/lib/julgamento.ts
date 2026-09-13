@@ -9,8 +9,12 @@
 
 import type { EixoConteudo, Nota } from "../../../src/api/tipos";
 
-const MODELO = "gemini-flash-latest";
-const TIMEOUT_MS = 8000;
+// O lite é o principal: em 12/09/2026 o flash devolveu 503 "high demand" ou
+// estourou o tempo em todas as tentativas, e o lite respondeu em ~2s em todas,
+// com notas estáveis entre execuções. O flash fica como segunda tentativa.
+const MODELOS = ["gemini-flash-lite-latest", "gemini-flash-latest"];
+// Roda em background function (até 15 min); 8s cortava resposta lenta mas válida.
+const TIMEOUT_MS = 15000;
 
 const EIXOS: EixoConteudo[] = [
   "resposta_direta",
@@ -29,6 +33,15 @@ const PROMPT_BASE = `Você avalia um trecho de texto extraído de uma página we
 
 Você recebe apenas texto limpo (sem HTML, sem nome do negócio, sem contato). Avalie os
 seis eixos abaixo, cada um de 0 a 10. Responda só com JSON, sem texto fora do JSON.
+
+Como ler o texto: linhas que começam com # são títulos (## subtítulo, ### e assim por
+diante); linhas que começam com - são itens de lista; […] marca trecho cortado para
+caber no limite — não trate o corte como falha do texto. Menu, carrinho e rodapé já
+foram removidos. Se houver uma linha "=== Página interna: /caminho ===", o que vem
+depois é de uma página interna do mesmo site (sobre, quem somos): avalie as duas
+partes juntas.`;
+
+const PROMPT_EIXOS = `
 
 Eixos:
 
@@ -69,24 +82,44 @@ Texto a avaliar:
 
 `;
 
+const PROMPT = `${PROMPT_BASE}\n${PROMPT_EIXOS}`;
+
+// Formato garantido pela API, não só pedido no prompt: resposta fora dele volta
+// como erro do modelo em vez de JSON que o validar() teria de recusar.
+const SCHEMA_RESPOSTA = {
+  type: "OBJECT",
+  properties: Object.fromEntries(
+    EIXOS.map((eixo) => [
+      eixo,
+      {
+        type: "OBJECT",
+        properties: { nota: { type: "INTEGER" }, por_que: { type: "STRING" } },
+        required: ["nota", "por_que"],
+      },
+    ])
+  ),
+  required: EIXOS,
+};
+
 interface RespostaGemini {
   candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
 }
 
-async function chamarGemini(textoLimpo: string): Promise<unknown> {
+async function chamarGemini(modelo: string, textoLimpo: string): Promise<unknown> {
   const chave = process.env.GEMINI_KEY_CONSULTA;
   if (!chave) throw new Error("GEMINI_KEY_CONSULTA não configurada");
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent`, {
+    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent`, {
       method: "POST",
       signal: controller.signal,
       headers: { "Content-Type": "application/json", "X-goog-api-key": chave },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: PROMPT_BASE + textoLimpo }] }],
-        generationConfig: { responseMimeType: "application/json" },
+        contents: [{ parts: [{ text: PROMPT + textoLimpo }] }],
+        // Temperatura 0: a mesma página tem de dar a mesma nota em duas consultas.
+        generationConfig: { responseMimeType: "application/json", responseSchema: SCHEMA_RESPOSTA, temperature: 0 },
       }),
     });
     if (!resp.ok) throw new Error(`Gemini respondeu HTTP ${resp.status}`);
@@ -108,7 +141,8 @@ function validar(obj: unknown): Record<EixoConteudo, Nota> | null {
     if (typeof bruto !== "object" || bruto === null) return null;
     const nota = (bruto as Record<string, unknown>).nota;
     const porQue = (bruto as Record<string, unknown>).por_que;
-    if (typeof nota !== "number" || typeof porQue !== "string") return null;
+    if (typeof nota !== "number" || !Number.isInteger(nota) || nota < 0 || nota > 10) return null;
+    if (typeof porQue !== "string") return null;
     resultado[eixo] = { nota, por_que: porQue };
   }
   return resultado;
@@ -118,22 +152,27 @@ function validar(obj: unknown): Record<EixoConteudo, Nota> | null {
  * julgarConteudo — a assinatura É a trava de privacidade. Nunca passe mais do
  * que o texto limpo: nada de auditoria, negócio, e-mail ou site_resultado.
  *
- * Uma tentativa com backoff (tech-spec §6.4). Falhando as duas, devolve `null`
- * — o chamador trata como falha da chamada de julgamento: o pilar `estrutura`
- * sai do denominador do índice, e o laudo não menciona conteúdo. Nunca inventar nota.
+ * Uma nova tentativa com backoff (tech-spec §6.4), já no modelo de reserva.
+ * Falhando as duas, devolve `null` — o chamador trata como falha da chamada de
+ * julgamento: o pilar `estrutura` sai do denominador do índice, e o laudo não
+ * menciona conteúdo. Nunca inventar nota.
+ *
+ * Falha vai para o log da função (só modelo e motivo, nunca o texto julgado):
+ * sem isso, o pilar sumia de toda auditoria sem ninguém perceber.
  */
 export async function julgarConteudo(textoLimpo: string): Promise<Record<EixoConteudo, Nota> | null> {
   if (!textoLimpo || textoLimpo.trim().length < 50) return null;
 
-  for (let tentativa = 0; tentativa < 2; tentativa++) {
+  for (let tentativa = 0; tentativa < MODELOS.length; tentativa++) {
+    const modelo = MODELOS[tentativa];
     try {
-      const bruto = await chamarGemini(textoLimpo);
-      const validado = validar(bruto);
+      const validado = validar(await chamarGemini(modelo, textoLimpo));
       if (validado) return validado;
-    } catch {
-      // segue para o backoff, ou desiste na segunda tentativa
+      console.error(`[julgamento] ${modelo}: resposta fora do formato dos seis eixos`);
+    } catch (err) {
+      console.error(`[julgamento] ${modelo}: ${err instanceof Error ? err.message : String(err)}`);
     }
-    if (tentativa === 0) await new Promise((resolve) => setTimeout(resolve, 1500));
+    if (tentativa < MODELOS.length - 1) await new Promise((resolve) => setTimeout(resolve, 1500));
   }
   return null;
 }

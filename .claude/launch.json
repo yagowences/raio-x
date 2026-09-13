@@ -6,6 +6,12 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["--yes", "netlify-cli", "dev", "--port", "8888"],
       "port": 8888
+    },
+    {
+      "name": "vite-3100",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "--port", "3100", "--strictPort"],
+      "port": 3100
     }
   ]
 }

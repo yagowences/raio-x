@@ -42,16 +42,16 @@ mudarem, tem que ser possível dizer qual versão gerou qual laudo.
 | D4 | `frequencia` em `dominios_do_nicho` é **contagem absoluta**, não proporção | É como as fixtures já estão. O corte de 40% da spec §8.1 vira `frequencia / execucoes_validas` |
 | D5 | `gatilhos.json` está versionado mas **não ligado** ao código | Ligar o laudo é refator maior; o índice vem primeiro |
 | D6 | Nicho sem corpus é **etapa gratuita**, não degradação: índice sobre 75 e laudo com os gatilhos aplicáveis | É a única configuração que atende qualquer negócio sem investimento prévio. Descartar índice e laudo ali jogava fora 75 dos 100 pontos e 12 dos 14 gatilhos |
-| D7 | A etapa gratuita **mantém** a chamada de julgamento de conteúdo (`gemini-flash`, free tier) | Sem ela o pilar `estrutura` sai e o índice cai para 63 sobre 100. Os 12 pontos valem a cota; se a cota estourar, a degradação já existe |
+| D7 | A etapa gratuita **mantém** a chamada de julgamento de conteúdo (`gemini-flash-lite-latest`, com `gemini-flash-latest` de reserva, free tier) | Sem ela o pilar `estrutura` sai e o índice cai para 63 sobre 100. Os 12 pontos valem a cota; se a cota estourar, a degradação já existe |
 
 ## O que ficou de fora, de propósito
 
 Registrado para não voltar como surpresa:
 
-- **Runner de testes.** Não há Vitest nem Jest. O único portão é `npm run lint`
-  (`tsc --noEmit`). As 18 invariantes de `05-cenarios-e-fixtures.md` foram conferidas
-  por script na migração, mas o script não está versionado — hoje a verificação
-  depende de alguém repetir a conta. É a primeira dívida a pagar.
+- **Invariantes das fixtures em teste.** `npm test` (`node:test` via `tsx`, sem
+  dependência nova) cobre Módulo B, notas, teto e laudo contra casos reais. As 18
+  invariantes de `05-cenarios-e-fixtures.md` ainda não estão lá — foram conferidas por
+  script na migração, mas o script não está versionado. É a próxima dívida a pagar.
 - **Ligar `gatilhos.json` ao componente de laudo.** As recomendações continuam
   escritas à mão dentro de cada fixture — inclusive as da etapa gratuita, que foram
   selecionadas conferindo `requer_corpus` a olho, não por código.

@@ -1,8 +1,16 @@
 // netlify/functions/lib/moduloB/robots.ts
 //
-// Parser mínimo de robots.txt: agrupa por User-agent, olha Disallow/Allow para
-// a raiz ("/"). Não implementa wildcard nem "$" — suficiente para responder
-// "esse robô pode ler a home do site", que é o que o achado principal precisa.
+// Parser de robots.txt segundo a RFC 9309, restrito à pergunta que o achado
+// principal precisa: "esse robô pode ler a raiz (/) do site?".
+//
+// - Grupo: uma ou mais linhas User-agent seguidas de regras. Um User-agent que
+//   aparece depois de uma regra abre grupo novo. Linha em branco e comentário
+//   NÃO separam grupo — tratar como separador fazia regras de um grupo vazarem
+//   para o anterior (caso real: robots.txt padrão da Nuvemshop, em que o
+//   `Disallow: /` do WBSearchBot ia parar no grupo `*`).
+// - Nome do robô casa sem diferenciar maiúsculas; grupos repetidos se somam.
+// - Regra mais longa que casa com "/" vence; em empate, Allow vence. Suporta
+//   `*` e `$` no padrão.
 
 import { fetchComLimites } from "../http";
 import crawlersConfig from "../../../../config/crawlers.json";
@@ -24,53 +32,70 @@ export interface RegraRobots {
   permitido: boolean;
 }
 
-interface GrupoRegras {
-  disallow: string[];
-  allow: string[];
+interface Regra {
+  tipo: "allow" | "disallow";
+  padrao: string;
 }
 
-function parseRobots(texto: string): Map<string, GrupoRegras> {
-  const grupos = new Map<string, GrupoRegras>();
+/** Chave do mapa = nome do robô em minúsculas. */
+function parseRobots(texto: string): Map<string, Regra[]> {
+  const grupos = new Map<string, Regra[]>();
   let atuais: string[] = [];
-  let colecionandoUseragents = true;
+  let ultimaFoiUserAgent = false;
 
   for (const linhaBruta of texto.split(/\r?\n/)) {
     const linha = linhaBruta.split("#")[0].trim();
-    if (!linha) {
-      colecionandoUseragents = true;
-      continue;
-    }
+    if (!linha) continue;
     const i = linha.indexOf(":");
     if (i === -1) continue;
     const chave = linha.slice(0, i).trim().toLowerCase();
     const valor = linha.slice(i + 1).trim();
 
     if (chave === "user-agent") {
-      if (!colecionandoUseragents) atuais = []; // fecha o record anterior, abre um novo
-      if (!grupos.has(valor)) grupos.set(valor, { disallow: [], allow: [] });
-      atuais.push(valor);
-      colecionandoUseragents = true;
+      if (!ultimaFoiUserAgent) atuais = [];
+      const ua = valor.toLowerCase();
+      if (!grupos.has(ua)) grupos.set(ua, []);
+      atuais.push(ua);
+      ultimaFoiUserAgent = true;
       continue;
     }
 
-    if (chave === "disallow" || chave === "allow") {
-      colecionandoUseragents = false;
-      for (const ua of atuais.length > 0 ? atuais : ["*"]) {
-        const g = grupos.get(ua) ?? { disallow: [], allow: [] };
-        g[chave].push(valor);
-        grupos.set(ua, g);
-      }
+    // Sitemap é global, não pertence a grupo nenhum.
+    if (chave === "sitemap") continue;
+
+    // Qualquer outra diretiva (inclusive Crawl-delay) encerra a lista de User-agent.
+    ultimaFoiUserAgent = false;
+    if ((chave === "allow" || chave === "disallow") && valor !== "") {
+      for (const ua of atuais) grupos.get(ua)!.push({ tipo: chave, padrao: valor });
     }
   }
 
   return grupos;
 }
 
-function permiteRaiz(grupo: GrupoRegras | undefined): boolean {
-  if (!grupo) return true; // nenhuma regra para esse UA = permitido
-  const bloqueiaRaiz = grupo.disallow.includes("/");
-  if (!bloqueiaRaiz) return true;
-  return grupo.allow.includes("/"); // Allow explícito de mesma especificidade vence
+function casaComRaiz(padrao: string): boolean {
+  const ancorado = padrao.endsWith("$");
+  const corpo = (ancorado ? padrao.slice(0, -1) : padrao)
+    .split("*")
+    .map((parte) => parte.replace(/[.+?^${}()|[\]\\]/g, "\\$&"))
+    .join(".*");
+  return new RegExp(`^${corpo}${ancorado ? "$" : ""}`).test("/");
+}
+
+function permiteRaiz(regras: Regra[] | undefined): boolean {
+  if (!regras) return true; // nenhum grupo para esse UA = permitido
+  let vencedora: Regra | null = null;
+  for (const regra of regras) {
+    if (!casaComRaiz(regra.padrao)) continue;
+    if (
+      !vencedora ||
+      regra.padrao.length > vencedora.padrao.length ||
+      (regra.padrao.length === vencedora.padrao.length && regra.tipo === "allow")
+    ) {
+      vencedora = regra;
+    }
+  }
+  return vencedora?.tipo !== "disallow";
 }
 
 export interface ResultadoRobots {
@@ -90,11 +115,11 @@ export async function checarRobots(
     // sem robots.txt acessível = comportamento padrão, permitido para todos
   }
 
-  const grupos = textoBruto ? parseRobots(textoBruto) : new Map<string, GrupoRegras>();
+  const grupos = textoBruto ? parseRobots(textoBruto) : new Map<string, Regra[]>();
 
   const robots: RegraRobots[] = crawlers.map((c) => {
-    const grupo = grupos.get(c.string) ?? grupos.get("*");
-    return { ua: c.nome, familia: c.familia, gravidade: c.gravidade, permitido: permiteRaiz(grupo) };
+    const regras = grupos.get(c.string.toLowerCase()) ?? grupos.get("*");
+    return { ua: c.nome, familia: c.familia, gravidade: c.gravidade, permitido: permiteRaiz(regras) };
   });
 
   return { robots, textoBruto };

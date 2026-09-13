@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Auditoria, EntradaFormulario, EntradaLead } from "./api/tipos";
-import { api } from "./api/client";
+import { api, USE_MOCK } from "./api/client";
 import { obterFixturePorCenario, CenarioKey, detectarCenarioURL } from "./api/mock";
 import { Formulario } from "./telas/Formulario";
 import { Analise } from "./telas/Analise";
 import { Resultado } from "./telas/Resultado";
 import { Fila } from "./telas/Fila";
 import { track } from "./analytics";
+
+const mostrarSeletorDev =
+  USE_MOCK || (typeof window !== "undefined" && new URLSearchParams(window.location.search).has("dev"));
 
 export default function App() {
   const [tela, setTela] = useState<"formulario" | "analise" | "resultado" | "fila" | "rate_limit">("formulario");
@@ -264,7 +267,9 @@ export default function App() {
         )}
       </main>
 
-      {/* Seletor Discreto de Cenário (Dev Only, 10px monospace, sem cor de destaque) */}
+      {/* Seletor Discreto de Cenário (Dev Only, 10px monospace, sem cor de destaque).
+          Fora de localhost só com ?dev na URL — em produção ele saía no PDF do cliente. */}
+      {mostrarSeletorDev && (
       <div className="dev-cenario-selector" aria-label="Seletor de testes de cenário">
         <label htmlFor="dev-cenario-select">dev:</label>
         <select
@@ -281,6 +286,7 @@ export default function App() {
           <option value="rate_limit">rate-limit (429)</option>
         </select>
       </div>
+      )}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import React from "react";
 import { SiteResultado, Indice } from "../api/tipos";
+import { bloqueioCritico } from "../dominio/bloqueio";
 
 interface BlocoBloqueioProps {
   id?: string;
@@ -7,15 +8,24 @@ interface BlocoBloqueioProps {
   indice: Indice;
 }
 
+// Só descreve o que foi medido: robô, status e origem vêm de site_resultado.
+// Sem bloqueio crítico medido, o bloco não aparece — nunca um "HTTP 403" de enfeite.
 export const BlocoBloqueio: React.FC<BlocoBloqueioProps> = ({
   id = "bloco-bloqueio-critico",
   siteResultado,
   indice,
 }) => {
-  const botsBloqueados = siteResultado.tecnica?.acesso?.filter((a) => a.bloqueado) || [];
-  const primeiroBloqueio = botsBloqueados[0];
-  const nomeBot = primeiroBloqueio ? primeiroBloqueio.ua : "Rastreador de IA";
-  const statusCode = primeiroBloqueio ? primeiroBloqueio.status : 403;
+  const bloqueio = bloqueioCritico(siteResultado);
+  if (!bloqueio) return null;
+
+  const titulo =
+    bloqueio.via === "http"
+      ? `${bloqueio.ua} recebeu HTTP ${bloqueio.status} em seu site`
+      : `Seu robots.txt proíbe o ${bloqueio.ua} de ler o site`;
+  const explicacao =
+    bloqueio.via === "http"
+      ? "Seu robots.txt está liberado. O bloqueio vem do firewall ou de um plugin de segurança do servidor."
+      : "A regra está no próprio arquivo robots.txt. É uma linha de texto, e removê-la libera o acesso.";
 
   return (
     <div
@@ -50,11 +60,11 @@ export const BlocoBloqueio: React.FC<BlocoBloqueioProps> = ({
               marginBottom: "var(--s1)",
             }}
           >
-            {nomeBot} recebeu HTTP {statusCode} em seu site
+            {titulo}
           </div>
 
           <p className="corpo-texto" style={{ marginBottom: "var(--s2)" }}>
-            Seu robots.txt está liberado. O bloqueio vem do firewall ou de um plugin de segurança do servidor.
+            {explicacao}
           </p>
 
           {indice.teto_aplicado !== null && (
@@ -69,7 +79,8 @@ export const BlocoBloqueio: React.FC<BlocoBloqueioProps> = ({
                 color: "var(--azul-profundo)",
               }}
             >
-              Índice limitado a {indice.teto_aplicado} por causa disto ({indice.motivo_teto || "bloqueio técnico"}).
+              Índice limitado a {indice.teto_aplicado} por causa disto
+              {indice.motivo_teto ? ` (${indice.motivo_teto})` : ""}.
             </div>
           )}
         </div>
