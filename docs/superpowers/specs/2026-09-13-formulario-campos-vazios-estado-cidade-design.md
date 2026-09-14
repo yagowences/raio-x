@@ -57,13 +57,48 @@ contrato de dados como campo novo, seguindo o padrão que `cidade` já tem hoje:
   `Auditoria.negocio.estado: string` (novo).
 - `src/api/mock.ts`: `auditoria.negocio.estado = input.estado || baseFixture.negocio.estado` —
   mesmo padrão de `cidade`/`segmento` na função `iniciar`.
-- `src/App.tsx`: `resultado.negocio.estado = dados.estado` no mesmo bloco que
-  já seta `nome`/`segmento`/`cidade`.
 - Fixtures (`src/api/fixtures/*.ts`): cada uma ganha `estado: "GO"` em
   `negocio` (todas as cinco são cenários de Goiás hoje).
 - Exibição: `Analise.tsx` (eyebrow, linha com `negocio.cidade`) e
   `Resultado.tsx` (cabeçalho "Negócio auditado: nome (segmento · cidade)")
   passam a mostrar `cidade, estado`.
+
+> **Nota de 2026-09-14:** esta seção foi escrita quando o `CLAUDE.md` descrevia
+> o repositório como "só o front". O `CLAUDE.md` e o `git status` foram
+> atualizados nesta sessão: existe backend real
+> (`netlify/functions/` + Supabase), e ele é o caminho padrão — mock só entra
+> com `?mock`/`?cenario=` na URL. A seção 5 cobre o que isso muda.
+
+### 5. Backend real (Supabase + Netlify Functions)
+
+Descoberto ao reler o estado atual do repo: `src/api/client.ts` chama
+`POST /api/raiox` de verdade por padrão (inclusive em localhost). Sem mexer
+no backend, `estado` seria enviado e silenciosamente descartado pelo Zod
+schema (`z.object` sem `.strict()` ignora chaves desconhecidas), nunca
+persistido, nunca devolvido — e como `App.tsx` substitui `auditoria` inteiro
+a cada tick do polling (`setAuditoria(atualizada)`), qualquer remendo só no
+front seria apagado no próximo poll. Para `estado` sobreviver de verdade ao
+polling e a reloads, no caminho real, precisa:
+
+- **Migration nova** `supabase/migrations/0003_estado.sql`, no padrão de
+  `0002_indice_completo.sql`: `alter table public.auditorias add column if
+  not exists estado text;`. Sem `not null` — linhas antigas não têm valor.
+- `netlify/functions/raiox.ts`: `EntradaSchema` ganha
+  `estado: z.string().trim().length(2)` (sigla de UF); os dois `insert`
+  (com site e sem site) passam a gravar a coluna `estado`.
+- `netlify/functions/lib/mapearAuditoria.ts`: `LinhaAuditoria` ganha
+  `estado: string | null`; `negocio` no retorno ganha `estado: linha.estado`.
+- `netlify/functions/raiox-status.ts`: o `select` explícito de colunas ganha
+  `estado`.
+- `netlify/functions/raiox-audit-background.ts` **não muda** — ele só lê
+  `negocio, segmento, cidade, site` para montar o laudo (Módulo C), e a
+  seção "Fora de escopo" já deixa claro que a copy do laudo continua sem
+  `estado`.
+
+A migration é aplicada ao projeto Supabase configurado (via `supabase db
+push` ou a ferramenta MCP do Supabase) como parte da implementação, não
+antes — é o tipo de mudança que se confirma com o usuário no momento de
+aplicar, não só no desenho.
 
 ## Fora de escopo (e por quê)
 
@@ -95,3 +130,9 @@ negócio cai no cenário `fila` (sem corpus), não é bloqueado no formulário.
 nenhuma regra de `src/dominio/` muda, nenhum teste existente deveria quebrar;
 não há bug de medição sendo corrigido aqui, então não se aplica a exigência de
 "bug corrigido ganha teste com o caso real".
+
+Como a seção 5 toca o backend real, a verificação manual entra também:
+`npx netlify dev` (porta 8888) para submeter o formulário de ponta a ponta —
+confirmar que `estado` chega no `insert`, sobrevive ao polling e aparece em
+Análise/Resultado — além do caminho de fixture (`?cenario=`) continuar
+funcionando sem backend.
