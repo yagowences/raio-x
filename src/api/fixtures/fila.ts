@@ -7,6 +7,7 @@ export const fixtureFila: Auditoria = {
     nome: "Burger Gourmet Truck",
     segmento: "food truck",
     cidade: "Goiânia",
+    estado: "GO",
     site: "https://burgergourmettruck.com.br",
   },
   corpus: {

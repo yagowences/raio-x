@@ -7,6 +7,7 @@ export const fixtureCritico: Auditoria = {
     nome: "Clínica Vitalis",
     segmento: "clínica de estética",
     cidade: "Goiânia",
+    estado: "GO",
     site: "https://clinicavitalis.com.br",
   },
   corpus: {

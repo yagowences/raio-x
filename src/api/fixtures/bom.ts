@@ -7,6 +7,7 @@ export const fixtureBom: Auditoria = {
     nome: "Clínica Bella Vitta",
     segmento: "clínica de estética",
     cidade: "Goiânia",
+    estado: "GO",
     site: "https://bellavitta.com.br",
   },
   corpus: {
