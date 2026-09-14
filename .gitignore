@@ -13,3 +13,6 @@ coverage/
 # Gerado pelo bootstrap de Edge Functions do `netlify dev` — não usamos Edge
 # Functions, é ruído de ferramenta local.
 deno.lock
+
+# Scratch progress ledger for subagent-driven-development (superpowers)
+.superpowers/
