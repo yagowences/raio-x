@@ -44,7 +44,7 @@ export const Analise: React.FC<AnaliseProps> = ({ auditoria, aoConcluirAnimacao 
     <div id="tela-analise" className="bloco-painel" style={{ padding: "var(--s4)" }}>
       <div style={{ marginBottom: "var(--s4)" }}>
         <span className="eyebrow">
-          Lendo nossa {formatarDataVarredura(corpus.gerado_em)} para {negocio.segmento} em {negocio.cidade}
+          Lendo nossa {formatarDataVarredura(corpus.gerado_em)} para {negocio.segmento} em {negocio.cidade}, {negocio.estado}
         </span>
         <h1 className="titulo-secao" style={{ marginTop: "var(--s1)" }}>
           {totalExec} execuções reais de varredura no nicho

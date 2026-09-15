@@ -1,5 +1,6 @@
 import { Auditoria, EntradaFormulario, EntradaLead } from "./tipos";
 import { RaioxApi } from "./client";
+import { segmentoTemPicklist } from "../dominio/segmento";
 import { fixtureCritico } from "./fixtures/critico";
 import { fixtureMedio } from "./fixtures/medio";
 import { fixtureBom } from "./fixtures/bom";
@@ -53,7 +54,7 @@ export const mockApi: RaioxApi = {
     if (!cenario) {
       if (!input.site || input.site.trim() === "") {
         cenario = "sem-site";
-      } else if (input.segmento.toLowerCase().includes("food truck") || input.segmento.toLowerCase().includes("outro")) {
+      } else if (!segmentoTemPicklist(input.segmento)) {
         cenario = "fila";
       } else {
         cenario = sortearCenario();

@@ -7,6 +7,7 @@ export const fixtureSemSite: Auditoria = {
     nome: "Estética Harmonize",
     segmento: "clínica de estética",
     cidade: "Goiânia",
+    estado: "GO",
     site: null,
   },
   corpus: {

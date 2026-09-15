@@ -23,6 +23,7 @@ export interface EntradaFormulario {
   negocio: string;
   segmento: string;
   cidade: string;
+  estado: string;
   site?: string;
 }
 
@@ -37,7 +38,7 @@ export interface EntradaLead {
 export interface Auditoria {
   auditoria_id: string;
   status: Status;
-  negocio: { nome: string; segmento: string; cidade: string; site: string | null };
+  negocio: { nome: string; segmento: string; cidade: string; estado: string; site: string | null };
   corpus: Corpus;
   visibilidade: Visibilidade | null;
   site_resultado: SiteResultado | null;

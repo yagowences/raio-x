@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { EntradaFormulario } from "../api/tipos";
 import { track } from "../analytics";
+import { SEGMENTOS_DISPONIVEIS, resolverSegmento } from "../dominio/segmento";
 
 interface FormularioProps {
   aoEnviar: (dados: EntradaFormulario) => Promise<void>;
@@ -9,24 +10,34 @@ interface FormularioProps {
   aoTentarNovamente?: () => void;
 }
 
-const SEGMENTOS_DISPONIVEIS = [
-  "clínica de estética",
-  "salão de beleza",
-  "barbearia",
-  "pet shop",
-  "clínica veterinária",
-  "ótica",
-  "nutricionista",
-  "psicólogo",
-  "outro segmento",
-];
-
-const CIDADES_DISPONIVEIS = [
-  "Goiânia",
-  "Aparecida de Goiânia",
-  "Anápolis",
-  "Senador Canedo",
-  "outra cidade",
+const ESTADOS_DISPONIVEIS = [
+  { sigla: "AC", nome: "Acre" },
+  { sigla: "AL", nome: "Alagoas" },
+  { sigla: "AP", nome: "Amapá" },
+  { sigla: "AM", nome: "Amazonas" },
+  { sigla: "BA", nome: "Bahia" },
+  { sigla: "CE", nome: "Ceará" },
+  { sigla: "DF", nome: "Distrito Federal" },
+  { sigla: "ES", nome: "Espírito Santo" },
+  { sigla: "GO", nome: "Goiás" },
+  { sigla: "MA", nome: "Maranhão" },
+  { sigla: "MT", nome: "Mato Grosso" },
+  { sigla: "MS", nome: "Mato Grosso do Sul" },
+  { sigla: "MG", nome: "Minas Gerais" },
+  { sigla: "PA", nome: "Pará" },
+  { sigla: "PB", nome: "Paraíba" },
+  { sigla: "PR", nome: "Paraná" },
+  { sigla: "PE", nome: "Pernambuco" },
+  { sigla: "PI", nome: "Piauí" },
+  { sigla: "RJ", nome: "Rio de Janeiro" },
+  { sigla: "RN", nome: "Rio Grande do Norte" },
+  { sigla: "RS", nome: "Rio Grande do Sul" },
+  { sigla: "RO", nome: "Rondônia" },
+  { sigla: "RR", nome: "Roraima" },
+  { sigla: "SC", nome: "Santa Catarina" },
+  { sigla: "SP", nome: "São Paulo" },
+  { sigla: "SE", nome: "Sergipe" },
+  { sigla: "TO", nome: "Tocantins" },
 ];
 
 export const Formulario: React.FC<FormularioProps> = ({
@@ -35,28 +46,38 @@ export const Formulario: React.FC<FormularioProps> = ({
   erroEnvio,
   aoTentarNovamente,
 }) => {
-  const [negocio, setNegocio] = useState("Clínica Vitalis");
-  const [segmento, setSegmento] = useState("clínica de estética");
-  const [cidade, setCidade] = useState("Goiânia");
-  const [site, setSite] = useState("https://clinicavitalis.com.br");
+  const [negocio, setNegocio] = useState("");
+  const [segmento, setSegmento] = useState("");
+  const [segmentoOutro, setSegmentoOutro] = useState("");
+  const [estado, setEstado] = useState("");
+  const [cidade, setCidade] = useState("");
+  const [site, setSite] = useState("");
   const [buscaSegmento, setBuscaSegmento] = useState("");
+
+  const segmentoEhOutro = /^outro segmento$/i.test(segmento);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!negocio.trim() || negocio.trim().length < 2 || negocio.trim().length > 120) {
       return;
     }
+    if (segmentoEhOutro && !segmentoOutro.trim()) {
+      return;
+    }
+
+    const segmentoFinal = resolverSegmento(segmento, segmentoOutro);
 
     track("raiox_iniciado", {
-      segmento,
+      segmento: segmentoFinal,
       cidade,
       tem_site: !!site.trim(),
     });
 
     aoEnviar({
       negocio: negocio.trim(),
-      segmento,
-      cidade,
+      segmento: segmentoFinal,
+      cidade: cidade.trim(),
+      estado,
       site: site.trim() || undefined,
     });
   };
@@ -152,35 +173,74 @@ export const Formulario: React.FC<FormularioProps> = ({
               disabled={enviando}
               required
             >
+              <option value="" disabled>
+                Selecione o segmento
+              </option>
               {segmentosFiltrados.map((seg) => (
                 <option key={seg} value={seg}>
                   {seg}
                 </option>
               ))}
             </select>
+            {segmentoEhOutro && (
+              <input
+                id="campo-segmento-outro"
+                type="text"
+                className="input-padrao"
+                placeholder="Ex.: fisioterapia"
+                aria-label="Qual o segmento do seu negócio?"
+                value={segmentoOutro}
+                onChange={(e) => setSegmentoOutro(e.target.value)}
+                minLength={2}
+                maxLength={120}
+                required
+                disabled={enviando}
+              />
+            )}
           </div>
         </div>
 
-        {/* Campo 3: Cidade */}
+        {/* Campo 3: Estado */}
+        <div className="grupo-campo">
+          <label htmlFor="campo-estado" className="rotulo-campo">
+            Estado <span style={{ color: "var(--azul-profundo)" }}>*</span>
+          </label>
+          <select
+            id="campo-estado"
+            name="estado"
+            className="select-padrao"
+            value={estado}
+            onChange={(e) => setEstado(e.target.value)}
+            disabled={enviando}
+            required
+          >
+            <option value="" disabled>
+              Selecione o estado
+            </option>
+            {ESTADOS_DISPONIVEIS.map((uf) => (
+              <option key={uf.sigla} value={uf.sigla}>
+                {uf.sigla} — {uf.nome}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Campo 3b: Cidade */}
         <div className="grupo-campo">
           <label htmlFor="campo-cidade" className="rotulo-campo">
             Cidade <span style={{ color: "var(--azul-profundo)" }}>*</span>
           </label>
-          <select
+          <input
             id="campo-cidade"
             name="cidade"
-            className="select-padrao"
+            type="text"
+            className="input-padrao"
+            placeholder="Ex.: Goiânia"
             value={cidade}
             onChange={(e) => setCidade(e.target.value)}
-            disabled={enviando}
             required
-          >
-            {CIDADES_DISPONIVEIS.map((cid) => (
-              <option key={cid} value={cid}>
-                {cid}
-              </option>
-            ))}
-          </select>
+            disabled={enviando}
+          />
         </div>
 
         {/* Campo 4: Site */}
