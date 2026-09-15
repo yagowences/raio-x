@@ -21,7 +21,7 @@ export default async (_req: Request, context: Context) => {
 
   const pool = getPool();
   const r = await pool.query(
-    `select id, negocio, segmento, cidade, site, status, site_resultado, indice_completo, laudo
+    `select id, negocio, segmento, cidade, estado, site, status, site_resultado, indice_completo, laudo
      from auditorias where id = $1`,
     [id]
   );
