@@ -78,3 +78,20 @@ export function calcularIndice(notas: NotaPilar[], opcoes: OpcoesIndice): Indice
 export function pesoMedido(indice: Indice): number {
   return indice.pilares.reduce((soma, p) => soma + p.peso, 0);
 }
+
+/** Pontos que só a varredura do nicho (Módulo A) mede — hoje, autoridade externa. */
+export function pontosDaVarredura(): number {
+  return pesos.pilares.filter((p) => p.fonte === "modulo_a").reduce((soma, p) => soma + p.peso, 0);
+}
+
+/**
+ * Pontos de pilar do site (Módulo B) que não foram medidos nesta consulta — ex.:
+ * julgamento de conteúdo falhou e `estrutura` saiu. Não é "autoridade externa":
+ * chamar isso de varredura é afirmar o que não foi testado.
+ */
+export function pontosNaoMedidos(indice: Indice): number {
+  const medidos = new Set(indice.pilares.map((p) => p.id));
+  return pesos.pilares
+    .filter((p) => p.fonte === "modulo_b" && !medidos.has(p.id))
+    .reduce((soma, p) => soma + p.peso, 0);
+}

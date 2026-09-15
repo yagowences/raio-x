@@ -62,16 +62,11 @@ export const mockApi: RaioxApi = {
 
     const baseFixture = obterFixturePorCenario(cenario);
 
-    // Apply user inputs to fixture while preserving corpus and analysis
+    // A fixture aparece com o próprio negócio. Carimbar o nome digitado sobre dados
+    // de outro nicho produzia um laudo falso com o nome de um cliente real.
     const auditoria: Auditoria = {
       ...baseFixture,
       auditoria_id: `aud_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-      negocio: {
-        nome: input.negocio || baseFixture.negocio.nome,
-        segmento: input.segmento || baseFixture.negocio.segmento,
-        cidade: input.cidade || baseFixture.negocio.cidade,
-        site: input.site ? (input.site.startsWith("http") ? input.site : `https://${input.site}`) : baseFixture.negocio.site,
-      },
     };
 
     if (!input.site && cenario !== "fila") {
