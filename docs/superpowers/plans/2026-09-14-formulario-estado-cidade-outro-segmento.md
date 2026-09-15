@@ -8,6 +8,25 @@
 
 **Tech Stack:** React 18 + TypeScript, Vite, `node:test` + `tsx` (testes), Zod (validação no backend), `pg` (Postgres via Supabase), Netlify Functions.
 
+## Amendment (2026-09-15, during execution)
+
+Task 2's execution revealed a real gap in this plan's sequencing:
+`netlify/functions/lib/mapearAuditoria.ts`'s `mapearAuditoria` function has
+an explicit `: Auditoria` return type, so the moment Task 2 widens
+`Auditoria.negocio` with a required `estado` field, this function's
+existing `negocio: { nome, segmento, cidade, site }` object literal stops
+compiling — `tsc --noEmit` fails immediately, not only once Task 7 (as
+originally sequenced) gets to it. `raiox.ts`'s `pool.query` return being
+untyped (`any`) does NOT shield this — the literal is checked against the
+function's own return-type annotation regardless of where the input data
+came from.
+
+**Execution order actually followed:** 1, 2, **7**, 3, 4, 5, 6, 8 — Task 7
+(mapearAuditoria.ts + raiox-status.ts) runs right after Task 2 to restore a
+compiling repo, before Tasks 3–6. Task 7 has no dependency on Tasks 3–6, so
+this reorder is safe. Task numbers/headings below are left as originally
+written; this note is the source of truth for actual sequencing.
+
 ## Global Constraints
 
 - `npm run lint` (`tsc --noEmit`) e `npm test` são o portão — rodar os dois antes de considerar qualquer tarefa pronta.
