@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Search, Users, Link2 } from "lucide-react";
 import { Auditoria, EntradaLead } from "../api/tipos";
 import { AuditoriaSite } from "../componentes/AuditoriaSite";
 import { Indice } from "../componentes/Indice";
@@ -8,6 +9,7 @@ import { BlocoBloqueio } from "../componentes/BlocoBloqueio";
 import { track } from "../analytics";
 import { bloqueioCritico, robosSemAcesso } from "../dominio/bloqueio";
 import { descreverCidade, descreverSegmento } from "../dominio/segmento";
+import { pontosDaVarredura, pontosNaoMedidos } from "../dominio/indice";
 
 interface FilaProps {
   auditoria: Auditoria;
@@ -39,7 +41,10 @@ export const Fila: React.FC<FilaProps> = ({
   // dos próprios pilares medidos, nunca de uma constante — se um pilar cair, o
   // número na tela acompanha. Ver docs/03, "Com site, sem corpus".
   const pesoMedido = indice ? indice.pilares.reduce((s, p) => s + p.peso, 0) : 0;
-  const pesoAusente = 100 - pesoMedido;
+  // Varredura = pilares do Módulo A (config/pesos.json). Pilar do site que falhou
+  // nesta consulta não é "autoridade externa" — sai à parte, dito com todas as letras.
+  const pesoVarredura = pontosDaVarredura();
+  const pesoNaoMedido = indice ? pontosNaoMedidos(indice) : 0;
   // Bloqueio crítico abre o BlocoBloqueio mesmo sem o teto morder (docs/03 §2).
   const temBloqueioCritico = bloqueioCritico(site_resultado) !== null;
   const semAcesso = robosSemAcesso(site_resultado);
@@ -90,9 +95,10 @@ export const Fila: React.FC<FilaProps> = ({
           <p className="corpo-texto" style={{ marginTop: "var(--s2)" }}>
             {indice ? (
               <>
-                A análise do seu site está pronta e completa, logo abaixo. Os{" "}
-                <strong>{pesoAusente} pontos restantes</strong> são de autoridade externa — quanto
-                a IA cita <strong>{negocio.nome}</strong> — e isso depende de uma varredura de{" "}
+                A análise do seu site está pronta{pesoNaoMedido === 0 ? " e completa" : ""}, logo abaixo.
+                {pesoNaoMedido > 0 && <> {pesoNaoMedido} pontos do site não puderam ser medidos nesta consulta.</>}{" "}
+                Os <strong>{pesoVarredura} pontos</strong> de autoridade externa — quanto a IA cita{" "}
+                <strong>{negocio.nome}</strong> — dependem de uma varredura de{" "}
                 <strong>{segmentoCopy}</strong> em <strong>{cidadeCopy}</strong>, que ainda
                 não rodamos. Deixe seu contato e enviamos em até <strong>{previsaoHoras} horas</strong>.
               </>
@@ -104,6 +110,73 @@ export const Fila: React.FC<FilaProps> = ({
               </>
             )}
           </p>
+
+          {/* Progresso visual do índice: reforça que o site já rendeu quase tudo
+              que pode render sozinho, e nomeia o que falta em pontos, não em vago. */}
+          {indice && (
+            <div style={{ marginTop: "var(--s3)" }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  fontSize: "11px",
+                  fontWeight: "var(--peso-titulo)",
+                  color: "var(--grafite)",
+                  marginBottom: "4px",
+                }}
+              >
+                <span>{pesoMedido} pontos medidos pelo site</span>
+                <span>{pesoVarredura} pontos dependem da varredura</span>
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  height: "8px",
+                  borderRadius: "var(--radius)",
+                  overflow: "hidden",
+                  border: "1px solid var(--borda-suave)",
+                }}
+                role="img"
+                aria-label={
+                  `${pesoMedido} de 100 pontos do índice medidos pelo site; ` +
+                  (pesoNaoMedido > 0 ? `${pesoNaoMedido} não medidos nesta consulta; ` : "") +
+                  `${pesoVarredura} pontos dependem da varredura de nicho`
+                }
+              >
+                <div style={{ width: `${pesoMedido}%`, backgroundColor: "var(--azul-profundo)" }} />
+                {pesoNaoMedido > 0 && <div style={{ width: `${pesoNaoMedido}%`, backgroundColor: "#FFFFFF" }} />}
+                <div
+                  style={{
+                    width: `${pesoVarredura}%`,
+                    backgroundColor: "#E2E8F0",
+                    backgroundImage:
+                      "repeating-linear-gradient(135deg, rgba(11,31,58,0.12) 0px, rgba(11,31,58,0.12) 2px, transparent 2px, transparent 7px)",
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Instrui o que exatamente chega com o contato — concreto, não "saiba mais". */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+              gap: "var(--s2)",
+              marginTop: "var(--s4)",
+            }}
+          >
+            {[
+              { Icone: Search, texto: <>Quantas vezes a IA cita <strong>{negocio.nome}</strong> em perguntas reais de {segmentoCopy}</> },
+              { Icone: Users, texto: <>Quais concorrentes aparecem no seu lugar</> },
+              { Icone: Link2, texto: <>De quais sites a IA tira essa informação</> },
+            ].map(({ Icone, texto }, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: "var(--s2)" }}>
+                <Icone size={16} color="var(--ciano)" strokeWidth={2.25} style={{ flexShrink: 0, marginTop: "2px" }} aria-hidden="true" />
+                <span className="corpo-pequeno" style={{ color: "var(--azul-profundo)" }}>{texto}</span>
+              </div>
+            ))}
+          </div>
         </div>
 
         {sucessoLead ? (

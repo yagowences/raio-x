@@ -7,9 +7,10 @@
   node_bundler = "esbuild"
 
 [dev]
-  # npm run dev fixa a porta em 3000 (vite.config.ts), diferente do padrão do
-  # Vite (5173) que o `netlify dev` tenta detectar sozinho.
-  targetPort = 3000
+  # npm run dev fixa a porta em 3100 com --strictPort (package.json). Na 3000 havia
+  # outro app nesta máquina: o Vite caía calado na 3001 e o `netlify dev` passava a
+  # servir o app errado. --strictPort faz a colisão falhar alto em vez disso.
+  targetPort = 3100
 
 # Cada função v2 declara seu próprio path via `export const config` — não precisa
 # de [[redirects]] aqui. Front nunca fala com Supabase nem com Gemini — só as

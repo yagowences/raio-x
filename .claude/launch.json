@@ -8,9 +8,9 @@
       "port": 8888
     },
     {
-      "name": "vite-3100",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": ["vite", "--port", "3100", "--strictPort"],
+      "name": "dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
       "port": 3100
     }
   ]

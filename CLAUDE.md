@@ -3,14 +3,17 @@
 Protótipo visual da ferramenta de auditoria de visibilidade de negócios locais em
 respostas de IA generativa.
 
-**Este repositório é só o front.** Não há backend aqui. Todas as telas consomem
-fixtures através de `src/api/mock.ts`. O dia em que o backend existir, o único
-arquivo que muda é `src/api/client.ts` (`USE_MOCK = false`).
+Front em `src/`, backend da etapa gratuita em `netlify/functions/` (Supabase +
+Gemini). `src/api/client.ts` fala com a API real por padrão, inclusive em
+localhost. Fixtures de `src/api/mock.ts` só com `?mock` ou `?cenario=` na URL (ou
+pelo seletor `dev:`), e aparecem sempre com o próprio negócio e a faixa
+"Demonstração" — nunca com o nome digitado por um cliente real.
 
 ## Comandos
 
 ```bash
-npm run dev      # vite, porta 3000
+npx netlify dev  # app + funções, porta 8888 — consulta real em máquina local
+npm run dev      # só o front (vite, porta 3100, --strictPort)
 npm run build    # build de produção
 npm run lint     # tsc --noEmit
 npm test         # node:test via tsx — Módulo B, notas, teto e laudo

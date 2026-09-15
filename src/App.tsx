@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Auditoria, EntradaFormulario, EntradaLead } from "./api/tipos";
-import { api, USE_MOCK } from "./api/client";
+import { api, USE_MOCK, EM_DESENVOLVIMENTO } from "./api/client";
 import { obterFixturePorCenario, CenarioKey, detectarCenarioURL } from "./api/mock";
 import { Formulario } from "./telas/Formulario";
 import { Analise } from "./telas/Analise";
 import { Resultado } from "./telas/Resultado";
 import { Fila } from "./telas/Fila";
+import { Logo } from "./componentes/Logo";
 import { track } from "./analytics";
 
 const mostrarSeletorDev =
-  USE_MOCK || (typeof window !== "undefined" && new URLSearchParams(window.location.search).has("dev"));
+  EM_DESENVOLVIMENTO || USE_MOCK || (typeof window !== "undefined" && new URLSearchParams(window.location.search).has("dev"));
 
 export default function App() {
   const [tela, setTela] = useState<"formulario" | "analise" | "resultado" | "fila" | "rate_limit">("formulario");
@@ -21,6 +22,9 @@ export default function App() {
   const [sucessoLead, setSucessoLead] = useState(false);
   const [cenarioForcado, setCenarioForcado] = useState<string>("url_ou_sorteio");
   const [consultasHoje, setConsultasHoje] = useState(0);
+  // true quando a tela mostra fixture, não auditoria real — a faixa de
+  // demonstração aparece (inclusive no PDF) para nenhum dado fictício passar por laudo.
+  const [demonstracao, setDemonstracao] = useState(false);
 
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const pollingTentativasRef = useRef(0);
@@ -76,17 +80,16 @@ export default function App() {
     try {
       let resultado: Auditoria;
 
-      if (cenarioForcado !== "url_ou_sorteio" && cenarioForcado !== "rate_limit") {
+      const usaFixture = cenarioForcado !== "url_ou_sorteio" && cenarioForcado !== "rate_limit";
+      if (usaFixture) {
+        // Fixture com o próprio negócio — nunca o nome digitado sobre dado fictício.
         resultado = obterFixturePorCenario(cenarioForcado as CenarioKey);
-        resultado.negocio.nome = dados.negocio;
-        resultado.negocio.segmento = dados.segmento;
-        resultado.negocio.cidade = dados.cidade;
-        resultado.negocio.site = dados.site || (cenarioForcado === "sem-site" ? null : resultado.negocio.site);
         resultado.auditoria_id = `aud_${Date.now()}`;
       } else {
         resultado = await api.iniciar(dados);
       }
 
+      setDemonstracao(usaFixture || USE_MOCK);
       setAuditoria(resultado);
       setConsultasHoje((prev) => prev + 1);
       setSucessoLead(false);
@@ -106,7 +109,11 @@ export default function App() {
         iniciarPolling(resultado.auditoria_id);
       }
     } catch (err) {
-      setErroEnvio("Não foi possível conectar aos dados de auditoria. Suas informações foram mantidas.");
+      setErroEnvio(
+        EM_DESENVOLVIMENTO
+          ? "Backend local indisponível. Para auditar de verdade, rode `npx netlify dev` e abra a porta 8888; para ver uma demonstração, use ?cenario=critico."
+          : "Não foi possível conectar aos dados de auditoria. Suas informações foram mantidas."
+      );
       console.error(err);
     } finally {
       setEnviandoFormulario(false);
@@ -164,6 +171,7 @@ export default function App() {
     }
 
     const fix = obterFixturePorCenario(novoCenario as CenarioKey);
+    setDemonstracao(true);
     setAuditoria(fix);
     setSucessoLead(false);
     if (fix.status === "na_fila") {
@@ -186,8 +194,12 @@ export default function App() {
       {/* Cabeçalho da Aplicação */}
       <header className="topo-app">
         <div className="topo-marca">
-          <span className="wordmark">Raio-X de IA</span>
-          <span className="topo-sub">· Intellectus Digital</span>
+          <Logo tamanho={30} />
+          <div className="topo-divisor" aria-hidden="true" />
+          <div>
+            <span className="wordmark" style={{ fontSize: "20px" }}>Raio-X de IA</span>
+            <span className="topo-sub" style={{ display: "block" }}>Auditoria de presença em IA</span>
+          </div>
         </div>
 
         {tela !== "formulario" && (
@@ -204,6 +216,25 @@ export default function App() {
 
       {/* Roteamento de Telas em Memória */}
       <main id="conteudo-principal">
+        {demonstracao && tela !== "formulario" && tela !== "rate_limit" && (
+          <div
+            id="faixa-demonstracao"
+            role="note"
+            style={{
+              padding: "10px 14px",
+              marginBottom: "var(--s4)",
+              border: "2px dashed var(--azul-profundo)",
+              borderRadius: "var(--radius)",
+              backgroundColor: "#FFFFFF",
+              fontSize: "13px",
+              fontWeight: "var(--peso-titulo)",
+              color: "var(--azul-profundo)",
+            }}
+          >
+            Demonstração com dados fictícios. Nenhum site foi auditado nesta tela.
+          </div>
+        )}
+
         {tela === "formulario" && (
           <Formulario
             aoEnviar={handleIniciarAuditoria}

@@ -1,4 +1,5 @@
 import React from "react";
+import { ShieldAlert } from "lucide-react";
 import { SiteResultado, Indice } from "../api/tipos";
 import { bloqueioCritico } from "../dominio/bloqueio";
 
@@ -42,13 +43,13 @@ export const BlocoBloqueio: React.FC<BlocoBloqueioProps> = ({
       <div style={{ display: "flex", alignItems: "flex-start", gap: "var(--s3)" }}>
         <div
           style={{
-            fontSize: "20px",
-            lineHeight: "1",
+            width: "24px",
+            flexShrink: 0,
             marginTop: "2px",
           }}
           aria-hidden="true"
         >
-          ⛔
+          <ShieldAlert size={24} color="var(--azul-profundo)" strokeWidth={2} />
         </div>
 
         <div style={{ flex: 1 }}>

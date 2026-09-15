@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { notasDoModuloB } from "../src/dominio/notas";
 import { bloqueioCritico, motivoTeto } from "../src/dominio/bloqueio";
+import { calcularIndice, pontosDaVarredura, pontosNaoMedidos } from "../src/dominio/indice";
 import type { SiteResultado } from "../src/api/tipos";
 
 type Gravidade = "critica" | "alta" | "baixa";
@@ -97,6 +98,34 @@ test("sem julgamento de conteúdo, autoria fica só com a checagem da página", 
 test("Estrutura não conta sinais de autoria — senão o eixo pesa em dois pilares", () => {
   // Conteúdo 10 em tudo menos autoria: média dos cinco eixos = 100; (80 + 100) / 2 = 90.
   assert.equal(nota(comConteudoEEstrutura(true), conteudo({ sinais_de_autoria: 0 }), "estrutura"), 90);
+});
+
+test("pontos da varredura vêm dos pilares de corpus, não de 100 − medido", () => {
+  // Com o julgamento de conteúdo fora, o índice mede 63; a copy dizia "37 pontos
+  // de autoridade externa". A varredura vale 25 — os outros 12 não foram medidos.
+  const semEstrutura = calcularIndice(
+    [
+      { id: "autoria_onpage", nota: 50, confianca: "media" },
+      { id: "tecnica", nota: 100, confianca: "alta" },
+      { id: "local_nap", nota: 50, confianca: "alta" },
+      { id: "dados_estruturados", nota: 65, confianca: "alta" },
+    ],
+    { tetoAcionado: false }
+  );
+  assert.equal(pontosDaVarredura(), 25);
+  assert.equal(pontosNaoMedidos(semEstrutura), 12);
+});
+
+test("etapa gratuita completa não tem ponto sem medição", () => {
+  const completo = calcularIndice(
+    ["autoria_onpage", "tecnica", "local_nap", "estrutura", "dados_estruturados"].map((id) => ({
+      id,
+      nota: 70,
+      confianca: "alta" as const,
+    })),
+    { tetoAcionado: false }
+  );
+  assert.equal(pontosNaoMedidos(completo), 0);
 });
 
 test("robô de gravidade alta barrado por 429 não é bloqueio crítico", () => {

@@ -120,8 +120,14 @@ h1, h2, h3, h4, h5, h6 {
 
 .topo-marca {
   display: flex;
-  align-items: baseline;
-  gap: var(--s2);
+  align-items: center;
+  gap: var(--s3);
+}
+
+.topo-divisor {
+  width: 1px;
+  align-self: stretch;
+  background-color: var(--borda-suave);
 }
 
 .topo-sub {
@@ -246,6 +252,37 @@ h1, h2, h3, h4, h5, h6 {
   * {
     animation: none !important;
     transition: none !important;
+  }
+}
+
+/* Impressão / PDF — o laudo vira PDF pra mandar pro cliente (§ fluxo real).
+   Duas falhas que não dá pra deixar acontecer nesse documento:
+   1. Navegador descarta cor de fundo por padrão, e a chapa radiográfica é
+      texto branco sobre --chapa-fundo. Sem isto, ela vira invisível no papel.
+   2. O seletor de cenário de dev não pode vazar pro PDF do cliente — é
+      exatamente o que o comentário sobre ele em App.tsx já avisa.
+*/
+@media print {
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color-adjust: exact;
+  }
+
+  .dev-cenario-selector {
+    display: none !important;
+  }
+
+  .bloco-painel,
+  .bloco-alerta-critico,
+  .chapa-radiografica {
+    break-inside: avoid;
+  }
+
+  /* Ações que não fazem sentido em papel: "Nova consulta", "Tentar novamente"
+     e afins não clicam em PDF impresso. */
+  .botao-secundario {
+    display: none !important;
   }
 }
 

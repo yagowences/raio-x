@@ -3,15 +3,22 @@ import { mockApi } from "./mock";
 
 // api/client.ts — o único arquivo que muda no dia da integração
 //
-// USE_MOCK detecta o ambiente pelo hostname — sem env var (P5: nada em src/ lê
-// process.env ou import.meta.env). Em localhost/127.0.0.1 (npm run dev) sempre
-// usa mock; qualquer deploy real (Netlify) usa a API de verdade automaticamente.
-// O seletor `dev:` no rodapé continua funcionando em qualquer um dos dois casos,
-// porque ele nunca chama `api` — troca a fixture direto no estado do App.
-export const USE_MOCK =
-  typeof window === "undefined" ||
-  window.location.hostname === "localhost" ||
-  window.location.hostname === "127.0.0.1";
+// Mock só quando pedido na URL (?mock ou ?cenario=) — sem env var (P5: nada em
+// src/ lê process.env ou import.meta.env). Antes o hostname decidia, e toda
+// consulta em localhost caía no mock: o Complexo Invictus, barbearia, recebeu um
+// laudo com o próprio nome sobre a fixture de clínica de estética. Consulta real
+// em máquina local: `npx netlify dev` (funções em /api). O seletor `dev:` nunca
+// chama `api` — troca a fixture direto no estado do App.
+export function deveUsarMock(search: string): boolean {
+  const params = new URLSearchParams(search);
+  return params.has("mock") || params.has("cenario");
+}
+
+export const EM_DESENVOLVIMENTO =
+  typeof window !== "undefined" &&
+  (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+
+export const USE_MOCK = typeof window === "undefined" || deveUsarMock(window.location.search);
 
 export interface RaioxApi {
   iniciar(input: EntradaFormulario): Promise<Auditoria>;
