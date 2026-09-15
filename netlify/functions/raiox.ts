@@ -24,6 +24,7 @@ const EntradaSchema = z.object({
   negocio: z.string().trim().min(2).max(120),
   segmento: z.string().trim().min(1).max(120),
   cidade: z.string().trim().min(1).max(120),
+  estado: z.string().trim().length(2),
   site: z.string().trim().min(3).max(300).optional(),
 });
 
@@ -59,7 +60,7 @@ export default async (req: Request, context: Context) => {
     );
   }
 
-  const { negocio, segmento, cidade, site } = validado.data;
+  const { negocio, segmento, cidade, estado, site } = validado.data;
   const ip = context.ip || "0.0.0.0";
   const ipHash = hashIp(ip);
   const pool = getPool();
@@ -80,20 +81,20 @@ export default async (req: Request, context: Context) => {
     // Sem site: nada para o Módulo B auditar. Resposta final, sem polling —
     // client.ts só inicia polling quando site_resultado vem null.
     const r = await pool.query(
-      `insert into auditorias (negocio, segmento, cidade, site, status, site_resultado, ip_hash)
-       values ($1, $2, $3, null, 'na_fila', $4, $5)
-       returning id, negocio, segmento, cidade, site, status, site_resultado, indice_completo, laudo`,
-      [negocio, segmento, cidade, JSON.stringify({ avaliado: false, motivo: "sem_site" }), ipHash]
+      `insert into auditorias (negocio, segmento, cidade, estado, site, status, site_resultado, ip_hash)
+       values ($1, $2, $3, $4, null, 'na_fila', $5, $6)
+       returning id, negocio, segmento, cidade, estado, site, status, site_resultado, indice_completo, laudo`,
+      [negocio, segmento, cidade, estado, JSON.stringify({ avaliado: false, motivo: "sem_site" }), ipHash]
     );
     const auditoria: Auditoria = mapearAuditoria(r.rows[0]);
     return new Response(JSON.stringify(auditoria), { status: 200, headers: headersJson() });
   }
 
   const r = await pool.query(
-    `insert into auditorias (negocio, segmento, cidade, site, status, ip_hash)
-     values ($1, $2, $3, $4, 'parcial', $5)
-     returning id, negocio, segmento, cidade, site, status, site_resultado, indice_completo, laudo`,
-    [negocio, segmento, cidade, siteNormalizado, ipHash]
+    `insert into auditorias (negocio, segmento, cidade, estado, site, status, ip_hash)
+     values ($1, $2, $3, $4, $5, 'parcial', $6)
+     returning id, negocio, segmento, cidade, estado, site, status, site_resultado, indice_completo, laudo`,
+    [negocio, segmento, cidade, estado, siteNormalizado, ipHash]
   );
   const linha = r.rows[0];
   const auditoria: Auditoria = mapearAuditoria(linha);
