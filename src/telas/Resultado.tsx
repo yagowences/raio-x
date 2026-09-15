@@ -87,7 +87,7 @@ export const Resultado: React.FC<ResultadoProps> = ({
         }}
       >
         <div>
-          Negócio auditado: <strong>{negocio.nome}</strong> ({negocio.segmento} · {negocio.cidade})
+          Negócio auditado: <strong>{negocio.nome}</strong> ({negocio.segmento} · {negocio.cidade}, {negocio.estado})
         </div>
         <div style={{ fontFamily: "var(--mono)" }}>
           {formatarDataVarredura(corpus.gerado_em)} · {totalExec} execuções
